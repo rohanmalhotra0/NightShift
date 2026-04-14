@@ -3,23 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Moon,
-  BarChart3,
-  Briefcase,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ExternalLink,
-  Settings,
-  LogOut,
-  FileSpreadsheet,
-} from 'lucide-react';
-import { Button } from '@/components/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { useAuth } from '@/lib/auth';
 import { applications, jobs, users } from '@/lib/api';
-import { formatDate, formatCurrency } from '@/lib/utils';
 
 type TodayStats = {
   submitted: number;
@@ -94,16 +79,6 @@ export default function DashboardPage() {
     fetchData();
   }, [token]);
 
-  const handleCreateSheet = async () => {
-    if (!token) return;
-    try {
-      const result = await users.createSheet(token);
-      setSheetsUrl(result.url);
-    } catch (error) {
-      console.error('Failed to create sheet:', error);
-    }
-  };
-
   const handleLogout = () => {
     logout();
     router.push('/');
@@ -111,242 +86,216 @@ export default function DashboardPage() {
 
   if (isLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      <div className="min-h-screen bg-[var(--night)] flex items-center justify-center">
+        <div className="text-[var(--star)] animate-pulse font-serif text-2xl">Loading...</div>
       </div>
     );
   }
 
-  const statusIcon = (status: string) => {
+  const statusColor = (status: string) => {
     switch (status) {
       case 'submitted':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return 'text-green-400';
       case 'failed':
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return 'text-red-400';
       case 'pending':
       case 'in_progress':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
+        return 'text-yellow-400';
       default:
-        return <Clock className="h-5 w-5 text-gray-400" />;
+        return 'text-[rgba(245,242,236,0.4)]';
     }
   };
 
+  const isAdmin = user.is_admin || user.tier === 'admin';
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--paper)]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Moon className="h-7 w-7 text-primary-600" />
-            <span className="text-lg font-bold text-gray-900">NightShift</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-500">{user.email}</span>
-            <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded-full capitalize">
-              {user.tier}
+      <header className="bg-[var(--night)] border-b border-[rgba(245,242,236,0.06)]">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif text-xl text-[#f5f2ec] italic">
+            NightShift
+          </Link>
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-[rgba(245,242,236,0.5)]">{user.email}</span>
+            <span className={`px-3 py-1 text-[10px] font-medium tracking-widest uppercase ${
+              isAdmin
+                ? 'bg-[var(--star)] text-[var(--night)]'
+                : 'bg-[rgba(245,242,236,0.1)] text-[rgba(245,242,236,0.6)]'
+            }`}>
+              {isAdmin ? 'Admin' : user.tier}
             </span>
-            <Link href="/intake">
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
-              </Button>
+            <Link
+              href="/intake"
+              className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors"
+            >
+              Settings
             </Link>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        {/* Welcome */}
+        <div className="mb-10">
+          <h1 className="font-serif text-4xl text-[var(--ink)] mb-2">Good evening</h1>
+          <p className="text-[var(--muted)] text-sm">
+            {isAdmin ? 'Admin mode active - unlimited applications' : `Your applications are running tonight at 10 PM`}
+          </p>
+        </div>
+
         {/* Stats grid */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Today&apos;s Applications</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {todayStats?.submitted || 0}
-                    <span className="text-sm font-normal text-gray-400">
-                      /{todayStats?.daily_limit || 0}
-                    </span>
-                  </p>
-                </div>
-                <div className="p-3 bg-primary-100 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-primary-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid md:grid-cols-4 gap-6 mb-10">
+          <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+            <p className="text-[11px] tracking-widest uppercase text-[var(--muted)] mb-2">Today</p>
+            <p className="font-serif text-4xl text-[var(--ink)]">
+              {todayStats?.submitted || 0}
+              <span className="text-lg text-[var(--muted)]">/{isAdmin ? '∞' : (todayStats?.daily_limit || 0)}</span>
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-1">applications sent</p>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Matching Jobs</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {jobStats?.unapplied_matching || 0}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Briefcase className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+            <p className="text-[11px] tracking-widest uppercase text-[var(--muted)] mb-2">Queue</p>
+            <p className="font-serif text-4xl text-[var(--ink)]">
+              {jobStats?.unapplied_matching || 0}
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-1">matching jobs</p>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Success Rate (30d)</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {userStats ? `${Math.round(userStats.success_rate * 100)}%` : '0%'}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+            <p className="text-[11px] tracking-widest uppercase text-[var(--muted)] mb-2">Success</p>
+            <p className="font-serif text-4xl text-[var(--ink)]">
+              {userStats ? `${Math.round(userStats.success_rate * 100)}%` : '0%'}
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-1">last 30 days</p>
+          </div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Cost (30d)</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {userStats ? formatCurrency(userStats.total_cost) : '$0.00'}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+            <p className="text-[11px] tracking-widest uppercase text-[var(--muted)] mb-2">Total</p>
+            <p className="font-serif text-4xl text-[var(--ink)]">
+              {userStats?.total_applications || 0}
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-1">applications ever</p>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Recent applications */}
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Recent Applications</CardTitle>
-                <Link href="/applications">
-                  <Button variant="ghost" size="sm">
-                    View all
-                  </Button>
+            <div className="bg-[var(--card)] border border-[var(--border)]">
+              <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+                <h2 className="font-serif text-xl">Recent Applications</h2>
+                <Link href="/applications" className="text-xs text-[var(--star)] hover:underline">
+                  View all
                 </Link>
-              </CardHeader>
-              <CardContent className="p-0">
-                {recentApps.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>No applications yet</p>
-                    <p className="text-sm mt-1">
-                      Applications will start running tonight at 10 PM
-                    </p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {recentApps.map((app) => (
-                      <div key={app.id} className="px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {statusIcon(app.status)}
-                          <div>
-                            <p className="font-medium text-gray-900">{app.job_title}</p>
-                            <p className="text-sm text-gray-500">{app.company}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500 capitalize">{app.status}</p>
-                          <p className="text-xs text-gray-400">
-                            {formatDate(app.submitted_at || app.queued_at)}
-                          </p>
-                        </div>
+              </div>
+
+              {recentApps.length === 0 ? (
+                <div className="p-12 text-center">
+                  <p className="text-[var(--muted)] mb-2">No applications yet</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    Applications will start running tonight at 10 PM
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--border)]">
+                  {recentApps.map((app) => (
+                    <div key={app.id} className="px-6 py-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-[var(--ink)]">{app.job_title}</p>
+                        <p className="text-sm text-[var(--muted)]">{app.company}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <div className="text-right">
+                        <p className={`text-sm capitalize ${statusColor(app.status)}`}>
+                          {app.status === 'submitted' ? '✓ Submitted' : app.status}
+                        </p>
+                        <p className="text-xs text-[var(--muted)]">
+                          {new Date(app.submitted_at || app.queued_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Side panel */}
           <div className="space-y-6">
             {/* Google Sheets */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileSpreadsheet className="h-5 w-5" />
-                  <span>Application Log</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sheetsUrl ? (
-                  <a
-                    href={sheetsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 bg-green-50 rounded-lg text-green-700 hover:bg-green-100 transition-colors"
-                  >
-                    <span className="text-sm font-medium">View in Google Sheets</span>
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500 mb-3">
-                      Track all applications in Google Sheets
-                    </p>
-                    <Button onClick={handleCreateSheet} size="sm">
-                      Create Sheet
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+              <h3 className="font-serif text-lg mb-4">Application Log</h3>
+              {sheetsUrl ? (
+                <a
+                  href={sheetsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-4 bg-[rgba(200,185,122,0.1)] border border-[rgba(200,185,122,0.2)] text-[var(--star)] hover:bg-[rgba(200,185,122,0.15)] transition-colors"
+                >
+                  <span className="text-sm">Open Google Sheets</span>
+                  <span></span>
+                </a>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-[var(--muted)] mb-4">
+                    Track all applications in Google Sheets
+                  </p>
+                  <button className="btn-primary text-sm py-2 px-4">
+                    Create Sheet
+                  </button>
+                </div>
+              )}
+            </div>
 
-            {/* Quick stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle>30-Day Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Total Applications</span>
+            {/* 30-Day Summary */}
+            <div className="bg-[var(--card)] border border-[var(--border)] p-6">
+              <h3 className="font-serif text-lg mb-4">30-Day Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[var(--muted)]">Total Applications</span>
                   <span className="font-medium">{userStats?.total_applications || 0}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Successful</span>
-                  <span className="font-medium text-green-600">
-                    {userStats?.successful_applications || 0}
-                  </span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[var(--muted)]">Successful</span>
+                  <span className="font-medium text-green-600">{userStats?.successful_applications || 0}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">New Jobs Today</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[var(--muted)]">New Jobs Today</span>
                   <span className="font-medium">{jobStats?.new_jobs_today || 0}</span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Upgrade prompt for free tier */}
-            {user.tier === 'free' && (
-              <Card className="bg-gradient-to-br from-primary-500 to-primary-700 text-white">
-                <CardContent className="p-6">
-                  <h3 className="font-semibold text-lg mb-2">Upgrade to start applying</h3>
-                  <p className="text-sm text-primary-100 mb-4">
+            {/* Admin badge or upgrade prompt */}
+            {isAdmin ? (
+              <div className="bg-[var(--night)] border border-[var(--star)] p-6 text-center">
+                <div className="text-[var(--star)] text-2xl mb-2"></div>
+                <h3 className="font-serif text-lg text-[#f5f2ec] mb-1">Admin Mode</h3>
+                <p className="text-xs text-[rgba(245,242,236,0.5)]">
+                  Unlimited applications enabled
+                </p>
+              </div>
+            ) : user.tier === 'free' && (
+              <div className="bg-[var(--night)] p-6">
+                <div className="stars absolute inset-0 opacity-30" />
+                <div className="relative z-10">
+                  <h3 className="font-serif text-lg text-[#f5f2ec] mb-2">Upgrade to start</h3>
+                  <p className="text-xs text-[rgba(245,242,236,0.5)] mb-4">
                     Choose a plan to enable automated applications
                   </p>
-                  <Link href="/#pricing">
-                    <Button variant="secondary" size="sm">
-                      View Plans
-                    </Button>
+                  <Link href="/#pricing" className="btn-primary text-xs py-2 px-4 inline-block">
+                    View Plans
                   </Link>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
         </div>

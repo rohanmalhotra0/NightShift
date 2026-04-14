@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
+import uuid
 from sqlalchemy import (
     Column,
     Integer,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     JSON,
     Enum,
 )
+# Using String(36) for UUIDs for SQLite compatibility
 from sqlalchemy.orm import relationship, DeclarativeBase
 import enum
 
@@ -29,6 +31,7 @@ class UserTier(str, enum.Enum):
     STARTER = "starter"
     PRO = "pro"
     MAX = "max"
+    ADMIN = "admin"
 
 
 class ApplicationStatus(str, enum.Enum):
@@ -52,11 +55,12 @@ class User(Base):
     """User account model."""
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     stripe_customer_id = Column(String(255), nullable=True)
-    tier = Column(Enum(UserTier), default=UserTier.FREE)
+    tier = Column(String(20), default="free")
+    is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -72,24 +76,25 @@ class UserPrefs(Base):
     """User job preferences."""
     __tablename__ = "user_prefs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
 
-    # Job preferences stored as JSON arrays
-    job_titles = Column(JSON, default=list)  # ["Software Engineer", "Backend Developer"]
-    locations = Column(JSON, default=list)  # ["San Francisco, CA", "Remote"]
+    # Job preferences stored as JSON arrays (compatible with SQLite and PostgreSQL)
+    job_titles = Column(JSON, default=[])
+    locations = Column(JSON, default=[])
 
-    salary_min = Column(Integer, nullable=True)  # Minimum salary in USD
-    work_auth = Column(String(100), nullable=True)  # "US Citizen", "Green Card", etc.
-    remote_pref = Column(Enum(RemotePreference), default=RemotePreference.ANY)
+    salary_min = Column(Integer, nullable=True)
+    salary_max = Column(Integer, nullable=True)
+    work_auth = Column(String(100), nullable=True)
+    remote_preference = Column(String(20), default="any")
 
     # Cover letter preferences
     cover_letter_template = Column(Text, nullable=True)
     generate_cover_letter = Column(Boolean, default=False)
 
     # Scheduling preferences
-    run_hour_1 = Column(Integer, default=22)  # 10 PM
-    run_hour_2 = Column(Integer, default=23)  # 11 PM
+    run_hour_1 = Column(Integer, default=22)
+    run_hour_2 = Column(Integer, default=23)
 
     # Google Sheets
     sheets_id = Column(String(255), nullable=True)
@@ -105,13 +110,13 @@ class Resume(Base):
     """User resume storage."""
     __tablename__ = "resumes"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     filename = Column(String(255), nullable=False)
-    file_path = Column(String(500), nullable=False)  # Local path or S3 path
-    is_primary = Column(Boolean, default=False)
-    parsed_content = Column(Text, nullable=True)  # Extracted text for Claude
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    file_path = Column(String(500), nullable=False)
+    is_default = Column(Boolean, default=False)
+    parsed_content = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="resumes")
@@ -121,9 +126,9 @@ class Job(Base):
     """Scraped job listings."""
     __tablename__ = "jobs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    source = Column(String(50), default="linkedin")  # linkedin, indeed, etc.
-    external_id = Column(String(255), index=True)  # Job ID from source
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    source = Column(String(50), default="linkedin")
+    external_id = Column(String(255), index=True)
 
     title = Column(String(255), nullable=False)
     company = Column(String(255), nullable=False)
@@ -131,16 +136,12 @@ class Job(Base):
     url = Column(String(1000), nullable=False)
 
     description = Column(Text, nullable=True)
-    salary_range = Column(String(100), nullable=True)
-    job_type = Column(String(50), nullable=True)  # full-time, contract, etc.
+    salary_min = Column(Integer, nullable=True)
+    salary_max = Column(Integer, nullable=True)
+    job_type = Column(String(50), nullable=True)
 
     is_easy_apply = Column(Boolean, default=False)
     scraped_at = Column(DateTime, default=datetime.utcnow)
-
-    # Unique constraint on source + external_id for deduplication
-    __table_args__ = (
-        {"sqlite_autoincrement": True},
-    )
 
     # Relationships
     applications = relationship("Application", back_populates="job")
@@ -150,15 +151,15 @@ class Application(Base):
     """Job application records."""
     __tablename__ = "applications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    job_id = Column(String(36), ForeignKey("jobs.id"), nullable=True)
 
-    status = Column(Enum(ApplicationStatus), default=ApplicationStatus.PENDING)
-    resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=True)
+    status = Column(String(20), default="pending")
+    resume_used = Column(String(36), ForeignKey("resumes.id"), nullable=True)
 
     # Application data
-    answers_json = Column(JSON, nullable=True)  # Field mappings used
+    answers_json = Column(JSON, nullable=True)
     cover_letter_used = Column(Text, nullable=True)
 
     # Error tracking
@@ -166,9 +167,8 @@ class Application(Base):
     retry_count = Column(Integer, default=0)
 
     # Timestamps
-    queued_at = Column(DateTime, default=datetime.utcnow)
-    started_at = Column(DateTime, nullable=True)
     submitted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="applications")
@@ -180,20 +180,18 @@ class Metric(Base):
     """Metrics and cost tracking per application."""
     __tablename__ = "metrics"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    application_id = Column(String(36), ForeignKey("applications.id"), nullable=True)
 
     # Token usage
-    tokens_input = Column(Integer, default=0)
-    tokens_output = Column(Integer, default=0)
+    tokens_used = Column(Integer, default=0)
 
     # Costs
-    captcha_cost = Column(Float, default=0.0)  # In USD
-    claude_cost = Column(Float, default=0.0)  # In USD
+    captcha_cost = Column(Float, default=0.0)
 
     # Performance
-    duration_sec = Column(Float, default=0.0)
+    duration_seconds = Column(Integer, default=0)
 
     # Metadata
     job_site = Column(String(50), nullable=True)
@@ -204,3 +202,15 @@ class Metric(Base):
     # Relationships
     user = relationship("User", back_populates="metrics")
     application = relationship("Application", back_populates="metrics")
+
+
+class ContactSubmission(Base):
+    """Contact form submissions."""
+    __tablename__ = "contact_submissions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    subject = Column(String(255), nullable=True)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

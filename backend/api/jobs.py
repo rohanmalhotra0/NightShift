@@ -8,15 +8,15 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from ..database import get_db, User, UserPrefs, Job, Application
-from .auth import get_current_user
+from database import get_db, User, UserPrefs, Job, Application
+from api.auth import get_current_user
 
 router = APIRouter()
 
 
 # Response models
 class JobResponse(BaseModel):
-    id: int
+    id: str
     source: str
     title: str
     company: str
@@ -108,7 +108,7 @@ async def list_jobs(
     if hide_applied:
         applied_ids = db.query(Application.job_id).filter(
             Application.user_id == current_user.id
-        ).subquery()
+        ).scalar_subquery()
         query = query.filter(Job.id.notin_(applied_ids))
 
     # Get total count
@@ -155,7 +155,7 @@ async def list_jobs(
 
 @router.get("/{job_id}", response_model=JobDetailResponse)
 async def get_job(
-    job_id: int,
+    job_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -228,7 +228,7 @@ async def job_stats(
     # Applied jobs
     applied_ids = db.query(Application.job_id).filter(
         Application.user_id == current_user.id
-    ).subquery()
+    ).scalar_subquery()
 
     unapplied_matching = query.filter(Job.id.notin_(applied_ids)).count()
 

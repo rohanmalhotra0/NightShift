@@ -10,19 +10,23 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..database import get_db, User, UserPrefs, Resume, RemotePreference
-from .auth import get_current_user
-from ..services.sheets import GoogleSheetsLogger
+from config import settings
+from database import get_db, User, UserPrefs, Resume
+from api.auth import get_current_user
+from services.sheets import GoogleSheetsLogger
 
 router = APIRouter()
 
 
 # Request/Response models
+VALID_REMOTE_PREFS = {"remote", "hybrid", "onsite", "any"}
+
+
 class PreferencesResponse(BaseModel):
     job_titles: list[str]
     locations: list[str]
     salary_min: Optional[int]
+    salary_max: Optional[int]
     work_auth: Optional[str]
     remote_pref: str
     generate_cover_letter: bool
@@ -38,6 +42,7 @@ class PreferencesUpdate(BaseModel):
     job_titles: Optional[list[str]] = None
     locations: Optional[list[str]] = None
     salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
     work_auth: Optional[str] = None
     remote_pref: Optional[str] = None
     generate_cover_letter: Optional[bool] = None
@@ -46,10 +51,10 @@ class PreferencesUpdate(BaseModel):
 
 
 class ResumeResponse(BaseModel):
-    id: int
+    id: str
     filename: str
     is_primary: bool
-    uploaded_at: datetime
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -75,8 +80,9 @@ async def get_preferences(
         job_titles=prefs.job_titles or [],
         locations=prefs.locations or [],
         salary_min=prefs.salary_min,
+        salary_max=prefs.salary_max,
         work_auth=prefs.work_auth,
-        remote_pref=prefs.remote_pref.value if prefs.remote_pref else "any",
+        remote_pref=prefs.remote_preference or "any",
         generate_cover_letter=prefs.generate_cover_letter,
         run_hour_1=prefs.run_hour_1,
         run_hour_2=prefs.run_hour_2,
@@ -107,17 +113,19 @@ async def update_preferences(
     if update.salary_min is not None:
         prefs.salary_min = update.salary_min
 
+    if update.salary_max is not None:
+        prefs.salary_max = update.salary_max
+
     if update.work_auth is not None:
         prefs.work_auth = update.work_auth
 
     if update.remote_pref is not None:
-        try:
-            prefs.remote_pref = RemotePreference(update.remote_pref)
-        except ValueError:
+        if update.remote_pref not in VALID_REMOTE_PREFS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid remote preference: {update.remote_pref}",
+                detail=f"Invalid remote preference: {update.remote_pref}. Must be one of: {', '.join(VALID_REMOTE_PREFS)}",
             )
+        prefs.remote_preference = update.remote_pref
 
     if update.generate_cover_letter is not None:
         prefs.generate_cover_letter = update.generate_cover_letter
@@ -145,8 +153,9 @@ async def update_preferences(
         job_titles=prefs.job_titles or [],
         locations=prefs.locations or [],
         salary_min=prefs.salary_min,
+        salary_max=prefs.salary_max,
         work_auth=prefs.work_auth,
-        remote_pref=prefs.remote_pref.value if prefs.remote_pref else "any",
+        remote_pref=prefs.remote_preference or "any",
         generate_cover_letter=prefs.generate_cover_letter,
         run_hour_1=prefs.run_hour_1,
         run_hour_2=prefs.run_hour_2,
@@ -221,7 +230,7 @@ async def upload_resume(
         id=resume.id,
         filename=resume.filename,
         is_primary=resume.is_primary,
-        uploaded_at=resume.uploaded_at,
+        created_at=resume.created_at,
     )
 
 
@@ -233,14 +242,14 @@ async def list_resumes(
     """List user's uploaded resumes."""
     resumes = db.query(Resume).filter(
         Resume.user_id == current_user.id
-    ).order_by(Resume.uploaded_at.desc()).all()
+    ).order_by(Resume.created_at.desc()).all()
 
     return [
         ResumeResponse(
             id=r.id,
             filename=r.filename,
             is_primary=r.is_primary,
-            uploaded_at=r.uploaded_at,
+            created_at=r.created_at,
         )
         for r in resumes
     ]
@@ -248,7 +257,7 @@ async def list_resumes(
 
 @router.delete("/resume/{resume_id}")
 async def delete_resume(
-    resume_id: int,
+    resume_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -276,7 +285,7 @@ async def delete_resume(
 
 @router.put("/resume/{resume_id}/primary")
 async def set_primary_resume(
-    resume_id: int,
+    resume_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import stripe
 
-from ..config import settings
-from ..database import get_db, User, UserTier
-from .auth import get_current_user
+from config import settings
+from database import get_db, User, UserTier
+from api.auth import get_current_user
 
 router = APIRouter()
 

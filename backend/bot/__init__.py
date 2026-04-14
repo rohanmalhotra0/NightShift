@@ -1,9 +1,9 @@
 """Bot module for automated job applications."""
 
-from .engine import ApplicationBot
-from .captcha import CaptchaSolver
-from .autofill import AutoFiller
-from .gmail import GmailVerificationHandler
+from bot.engine import ApplicationBot
+from bot.captcha import CaptchaSolver
+from bot.autofill import AutoFiller
+from bot.gmail import GmailVerificationHandler
 
 __all__ = [
     "ApplicationBot",

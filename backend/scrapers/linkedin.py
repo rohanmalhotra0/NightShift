@@ -8,7 +8,7 @@ from jobspy import scrape_jobs
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from ..database import Job, get_db_context
+from database import Job, get_db_context
 
 logger = logging.getLogger(__name__)
 

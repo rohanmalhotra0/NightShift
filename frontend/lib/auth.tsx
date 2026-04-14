@@ -8,9 +8,10 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { auth as authApi } from './api';
 
 type User = {
-  id: number;
+  id: string;
   email: string;
   tier: string;
+  is_admin: boolean;
 };
 
 type AuthContextType = {

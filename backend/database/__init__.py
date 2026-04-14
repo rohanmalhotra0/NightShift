@@ -1,7 +1,8 @@
 """Database module."""
 
-from .db import get_db, get_db_context, init_db, engine, SessionLocal
-from .models import (
+from database.db import get_db, get_db_context, init_db, engine, SessionLocal
+from database.supabase_client import supabase, get_supabase
+from database.models import (
     Base,
     User,
     UserPrefs,
@@ -9,6 +10,7 @@ from .models import (
     Job,
     Application,
     Metric,
+    ContactSubmission,
     UserTier,
     ApplicationStatus,
     RemotePreference,
@@ -20,6 +22,8 @@ __all__ = [
     "init_db",
     "engine",
     "SessionLocal",
+    "supabase",
+    "get_supabase",
     "Base",
     "User",
     "UserPrefs",
@@ -27,6 +31,7 @@ __all__ = [
     "Job",
     "Application",
     "Metric",
+    "ContactSubmission",
     "UserTier",
     "ApplicationStatus",
     "RemotePreference",

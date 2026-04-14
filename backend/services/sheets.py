@@ -7,7 +7,7 @@ from typing import Optional
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

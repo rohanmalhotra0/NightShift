@@ -9,14 +9,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..database import (
+from config import settings
+from database import (
     User, UserPrefs, Job, Application, UserTier,
     ApplicationStatus, get_db_context,
 )
-from ..scrapers import run_scraper_async
-from ..bot.engine import run_application_batch
-from .sheets import GoogleSheetsLogger
+from scrapers import run_scraper_async
+from bot.engine import run_application_batch
+from services.sheets import GoogleSheetsLogger
 
 logger = logging.getLogger(__name__)
 

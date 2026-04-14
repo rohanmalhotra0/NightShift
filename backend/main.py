@@ -1,12 +1,20 @@
 """NightShift FastAPI application entry point."""
 
+import sys
+import os
+
+# Ensure the backend directory is in the path for imports
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
-from .database import init_db
-from .api import auth, users, jobs, applications, payments
+from config import settings
+from database import init_db
+from api import auth, users, jobs, applications, payments, contact
 
 
 @asynccontextmanager
@@ -41,6 +49,7 @@ app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
 app.include_router(applications.router, prefix="/applications", tags=["Applications"])
 app.include_router(payments.router, prefix="/payments", tags=["Payments"])
+app.include_router(contact.router, prefix="/contact", tags=["Contact"])
 
 
 @app.get("/")

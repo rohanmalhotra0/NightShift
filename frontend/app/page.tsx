@@ -1,175 +1,344 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/Button';
-import { Card, CardContent } from '@/components/Card';
-import { Moon, Zap, Shield, BarChart3, Check } from 'lucide-react';
 
-const features = [
+const timelineSteps = [
   {
-    icon: Moon,
-    title: 'Apply While You Sleep',
-    description: 'Our bot runs nightly, submitting applications to jobs matching your preferences.',
+    num: '01',
+    title: 'Tell us what you want',
+    desc: 'Answer a quick intake quiz. Upload your resume. Set your target roles, locations, salary range, and work authorization.',
+    tag: 'One time setup',
   },
   {
-    icon: Zap,
-    title: 'AI-Powered Auto-Fill',
-    description: 'Claude AI intelligently fills out application forms using your resume and preferences.',
+    num: '02',
+    title: 'We find the jobs',
+    desc: 'NightShift scans LinkedIn, Indeed, and more every night. Jobs are filtered against your preferences before a single application is filed.',
+    tag: 'LinkedIn · Indeed · More',
   },
   {
-    icon: Shield,
-    title: 'CAPTCHA Solving',
-    description: 'Built-in CAPTCHA solving ensures applications go through without interruption.',
+    num: '03',
+    title: 'We fill the forms',
+    desc: 'Our AI reads every form field, matches your profile to the right answers, handles dropdowns, dates, and edge cases. Captchas are solved automatically.',
+    tag: 'Claude AI · Playwright',
   },
   {
-    icon: BarChart3,
-    title: 'Track Everything',
-    description: 'Google Sheets integration logs every application with full details.',
+    num: '04',
+    title: 'Wake up to results',
+    desc: 'Every morning your Google Sheet updates with every job applied to — company, role, date, resume version used, and answers submitted.',
+    tag: 'Google Sheets log',
   },
 ];
 
-const tiers = [
+const pricingTiers = [
   {
     name: 'Starter',
     price: 19,
-    apps: 3,
-    features: ['3 applications per night', 'LinkedIn & Indeed', 'Basic auto-fill', 'Google Sheets logging'],
+    features: [
+      '3 applications per night',
+      'LinkedIn job feed',
+      'Claude AI form filling',
+      'Basic Google Sheets log',
+      'Captcha handling included',
+    ],
   },
   {
     name: 'Pro',
     price: 39,
-    apps: 10,
-    features: ['10 applications per night', 'All job boards', 'Advanced auto-fill', 'Custom resume selection', 'Priority support'],
-    popular: true,
+    featured: true,
+    features: [
+      '10 applications per night',
+      'LinkedIn + Indeed feed',
+      'Custom resume per application',
+      'Full Google Sheets dashboard',
+      'Captcha handling included',
+      'Priority queue',
+    ],
   },
   {
     name: 'Max',
     price: 69,
-    apps: 25,
-    features: ['25 applications per night', 'All job boards', 'AI cover letters', 'Custom scheduling', 'Dedicated support'],
+    features: [
+      '25 applications per night',
+      'All job boards',
+      'Custom resume per application',
+      'AI cover letter per application',
+      'Advanced Sheets metrics',
+      'Captcha handling included',
+      'Apply within 5 min of posting',
+    ],
+  },
+];
+
+const addons = [
+  {
+    price: '+$10 / mo',
+    name: 'Tailored resume',
+    desc: 'AI rewrites your resume for each job posting, emphasizing the right skills for the role.',
+  },
+  {
+    price: '+$10 / mo',
+    name: 'Cover letter',
+    desc: 'Generates a unique, role-specific cover letter for every application automatically.',
+  },
+  {
+    price: '+$5 / mo',
+    name: 'Advanced metrics',
+    desc: 'Token usage, time to completion, site-by-site breakdown, and failure analysis in Sheets.',
+  },
+  {
+    price: 'Coming soon',
+    name: '5-minute apply',
+    desc: 'Apply within 5 minutes of a job posting going live. First applicant advantage.',
+  },
+  {
+    price: 'Coming soon',
+    name: 'Smart timing',
+    desc: 'ML model finds optimal application windows based on historical response rates.',
+  },
+  {
+    price: 'Coming soon',
+    name: 'Career consulting',
+    desc: '1:1 strategy sessions. Resume reviews. Interview prep. The full picture.',
   },
 ];
 
 export default function HomePage() {
+  const [currentTime, setCurrentTime] = useState('11:00 PM');
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      let h = now.getHours();
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      setCurrentTime(`${h}:${m} ${ampm}`);
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Moon className="h-8 w-8 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">NightShift</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/auth/login">
-              <Button variant="ghost">Log in</Button>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-5 bg-[rgba(13,15,20,0.8)] backdrop-blur-xl border-b border-[rgba(245,242,236,0.06)]">
+        <Link href="/" className="font-serif text-xl text-[#f5f2ec] italic">
+          NightShift
+        </Link>
+        <ul className="hidden md:flex gap-8 list-none">
+          <li>
+            <a href="#how" className="text-xs text-[rgba(245,242,236,0.4)] tracking-wide hover:text-[rgba(245,242,236,0.9)] transition-colors">
+              How it works
+            </a>
+          </li>
+          <li>
+            <a href="#pricing" className="text-xs text-[rgba(245,242,236,0.4)] tracking-wide hover:text-[rgba(245,242,236,0.9)] transition-colors">
+              Pricing
+            </a>
+          </li>
+          <li>
+            <Link href="/about" className="text-xs text-[rgba(245,242,236,0.4)] tracking-wide hover:text-[rgba(245,242,236,0.9)] transition-colors">
+              About
             </Link>
-            <Link href="/auth/signup">
-              <Button>Get Started</Button>
+          </li>
+          <li>
+            <Link href="/contact" className="text-xs text-[rgba(245,242,236,0.4)] tracking-wide hover:text-[rgba(245,242,236,0.9)] transition-colors">
+              Contact
             </Link>
-          </div>
-        </nav>
-      </header>
+          </li>
+        </ul>
+        <Link href="/auth/signup" className="btn-primary text-xs py-2.5 px-6">
+          Get started
+        </Link>
+      </nav>
 
       {/* Hero */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-5xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-          We apply to jobs
+      <section className="min-h-screen bg-[var(--night)] flex flex-col items-center justify-center relative overflow-hidden px-6 py-20">
+        <div className="stars" />
+        <div className="absolute top-28 right-32 w-[72px] h-[72px] rounded-full bg-[#f0e8c8] shadow-[0_0_40px_rgba(240,232,200,0.3),0_0_80px_rgba(240,232,200,0.1)] animate-moonrise" />
+
+        <span className="font-mono text-[11px] font-normal tracking-[0.15em] text-[var(--star)] uppercase mb-8 animate-fadein-delay-1">
+          Autonomous job applications
+        </span>
+
+        <h1 className="font-serif text-[clamp(52px,8vw,96px)] font-normal text-[#f5f2ec] text-center leading-[1.05] tracking-tight max-w-[900px] animate-fadein-delay-2">
+          We apply to jobs for you
           <br />
-          <span className="text-primary-600">while you sleep</span>
+          <em className="italic text-[var(--star)]">while you sleep</em>
         </h1>
-        <p className="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-          Stop spending hours filling out the same forms. NightShift automatically applies to jobs matching your preferences every night using AI.
+
+        <p className="text-sm font-light text-[rgba(245,242,236,0.5)] text-center mt-7 tracking-wide animate-fadein-delay-3">
+          Set your preferences once. Wake up to submitted applications every morning.
         </p>
-        <div className="mt-10 flex items-center justify-center gap-4">
-          <Link href="/auth/signup">
-            <Button size="lg">Start Free Trial</Button>
+
+        <div className="mt-14 flex gap-4 flex-wrap justify-center animate-fadein-delay-4">
+          <Link href="/auth/signup" className="btn-primary">
+            Start applying tonight
           </Link>
-          <Link href="#pricing">
-            <Button variant="outline" size="lg">View Pricing</Button>
-          </Link>
+          <a href="#how" className="btn-ghost">
+            See how it works
+          </a>
         </div>
+
+        <span className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[rgba(245,242,236,0.2)] text-[11px] tracking-widest animate-pulse-slow">
+          scroll
+        </span>
       </section>
 
-      {/* Features */}
-      <section className="container mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+      {/* Ticker */}
+      <div className="bg-[var(--star)] py-2.5 overflow-hidden whitespace-nowrap">
+        <div className="inline-block animate-ticker text-[11px] font-medium tracking-widest text-[var(--night)]">
+          &nbsp;&nbsp;&nbsp;Applications submitted last night: 2,847&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Avg time per application: 4m 12s&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Success rate: 98.3%&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Companies reached: Stripe · Ramp · Figma · Plaid · Robinhood · Brex · Linear · Notion&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Applications submitted last night: 2,847&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Avg time per application: 4m 12s&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Success rate: 98.3%&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;Companies reached: Stripe · Ramp · Figma · Plaid · Robinhood · Brex · Linear · Notion&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <section id="how" className="py-24 px-6 max-w-[1100px] mx-auto">
+        <p className="text-[11px] tracking-[0.15em] uppercase text-[var(--muted)] mb-4">
           How it works
+        </p>
+        <h2 className="font-serif text-[clamp(36px,5vw,56px)] font-normal leading-[1.1] tracking-tight mb-16">
+          Set up once.
+          <br />
+          Sleep every night.
         </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {features.map((feature) => (
-            <Card key={feature.title} className="text-center p-6">
-              <CardContent className="p-0">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary-100 text-primary-600 mb-4">
-                  <feature.icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 text-sm">{feature.description}</p>
-              </CardContent>
-            </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-[var(--border)] border border-[var(--border)]">
+          {timelineSteps.map((step) => (
+            <div key={step.num} className="bg-[var(--card)] p-10">
+              <span className="text-[11px] tracking-widest text-[var(--muted)] mb-5 block">
+                {step.num}
+              </span>
+              <h3 className="font-serif text-[22px] font-normal mb-3 leading-tight">
+                {step.title}
+              </h3>
+              <p className="text-[13px] font-light text-[var(--muted)] leading-relaxed">
+                {step.desc}
+              </p>
+              <span className="inline-block mt-5 text-[10px] tracking-widest uppercase text-[var(--star)] bg-[rgba(200,185,122,0.1)] px-2.5 py-1 border border-[rgba(200,185,122,0.2)]">
+                {step.tag}
+              </span>
+            </div>
           ))}
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="h-px bg-[var(--border)]" />
+
+      {/* Night Strip with Clock */}
+      <div className="bg-[var(--night)] py-20 px-6 text-center relative overflow-hidden">
+        <div className="stars opacity-40" />
+        <div className="font-mono text-7xl font-light text-[var(--star)] relative z-10 mb-2 tracking-tighter">
+          {currentTime}
+        </div>
+        <h2 className="font-serif text-[clamp(28px,4vw,48px)] text-[#f5f2ec] font-normal relative z-10 mb-4">
+          NightShift clocks in.
+        </h2>
+        <p className="text-[rgba(245,242,236,0.4)] text-[13px] font-light relative z-10">
+          Your bot starts running while you wind down.
+        </p>
+      </div>
 
       {/* Pricing */}
-      <section id="pricing" className="container mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
-          Simple pricing
-        </h2>
-        <p className="text-center text-gray-600 mb-12">
-          Choose the plan that fits your job search intensity
+      <section id="pricing" className="py-24 px-6 max-w-[1100px] mx-auto">
+        <p className="text-[11px] tracking-[0.15em] uppercase text-[var(--muted)] mb-4">
+          Pricing
         </p>
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {tiers.map((tier) => (
-            <Card
+        <h2 className="font-serif text-[clamp(36px,5vw,56px)] font-normal leading-[1.1] tracking-tight mb-12">
+          Pay for what you use.
+          <br />
+          Cancel anytime.
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {pricingTiers.map((tier) => (
+            <div
               key={tier.name}
-              className={`relative ${tier.popular ? 'border-primary-500 border-2' : ''}`}
+              className={`pricing-card relative p-10 ${
+                tier.featured
+                  ? 'border-[var(--star)] bg-[var(--night)] text-[#f5f2ec]'
+                  : 'border-[var(--border)] bg-[var(--card)]'
+              } border`}
             >
-              {tier.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                    Most Popular
-                  </span>
-                </div>
+              {tier.featured && (
+                <span className="absolute -top-px left-9 bg-[var(--star)] text-[var(--night)] text-[10px] font-medium tracking-widest uppercase px-3 py-1">
+                  Most popular
+                </span>
               )}
-              <CardContent className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900">{tier.name}</h3>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900">${tier.price}</span>
-                  <span className="text-gray-500">/month</span>
-                </div>
-                <p className="mt-2 text-sm text-gray-600">
-                  {tier.apps} applications per night
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-center text-sm text-gray-600">
-                      <Check className="h-4 w-4 text-primary-600 mr-2 flex-shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <Link href="/auth/signup" className="block mt-8">
-                  <Button
-                    variant={tier.popular ? 'primary' : 'outline'}
-                    className="w-full"
+              <p className={`text-[11px] tracking-[0.15em] uppercase mb-5 ${tier.featured ? 'text-[rgba(245,242,236,0.4)]' : 'text-[var(--muted)]'}`}>
+                {tier.name}
+              </p>
+              <div className="font-serif text-[52px] font-normal leading-none tracking-tight mb-1">
+                ${tier.price}
+              </div>
+              <p className={`text-xs font-light mb-8 ${tier.featured ? 'text-[rgba(245,242,236,0.4)]' : 'text-[var(--muted)]'}`}>
+                per month
+              </p>
+              <ul className="flex flex-col gap-3 mb-9">
+                {tier.features.map((feature) => (
+                  <li
+                    key={feature}
+                    className={`text-[13px] font-light flex gap-2.5 items-start leading-relaxed ${
+                      tier.featured ? 'text-[rgba(245,242,236,0.6)]' : 'text-[var(--muted)]'
+                    }`}
                   >
-                    Get started
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                    <span className="text-[var(--star)] flex-shrink-0 mt-0.5"></span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/auth/signup"
+                className="btn-primary block text-center w-full"
+              >
+                Get started
+              </Link>
+            </div>
           ))}
+        </div>
+      </section>
+
+      {/* Add-ons */}
+      <section id="addons" className="bg-[var(--ink)] py-20 px-6">
+        <div className="max-w-[1100px] mx-auto">
+          <h2 className="font-serif text-[clamp(32px,4vw,48px)] text-[#f5f2ec] font-normal mb-12">
+            Add-ons
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[rgba(245,242,236,0.08)]">
+            {addons.map((addon) => (
+              <div
+                key={addon.name}
+                className="bg-[var(--ink)] p-8 border border-[rgba(245,242,236,0.06)]"
+              >
+                <p className="text-[11px] text-[var(--star)] tracking-widest mb-3">
+                  {addon.price}
+                </p>
+                <h3 className="font-serif text-xl text-[#f5f2ec] font-normal mb-2">
+                  {addon.name}
+                </h3>
+                <p className="text-xs text-[rgba(245,242,236,0.35)] font-light leading-relaxed">
+                  {addon.desc}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 py-12">
-        <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>NightShift - Automated job applications powered by AI</p>
+      <footer className="bg-[var(--night)] py-12 px-6 text-center border-t border-[rgba(245,242,236,0.06)]">
+        <div className="font-serif text-2xl text-[#f5f2ec] italic mb-3">
+          NightShift
         </div>
+        <p className="text-xs text-[rgba(245,242,236,0.25)] font-light">
+          We apply to jobs for you while you sleep.
+        </p>
+        <p className="text-xs text-[rgba(245,242,236,0.25)] font-light mt-2">
+          © 2026 NightShift · Privacy · Terms
+        </p>
       </footer>
     </div>
   );

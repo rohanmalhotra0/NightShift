@@ -9,13 +9,22 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database
-    DATABASE_URL: str = "sqlite:///./nightshift.db"
+    # Supabase
+    SUPABASE_URL: str = "REMOVED_SUPABASE_URL"
+    SUPABASE_ANON_KEY: str = "REMOVED_SUPABASE_ANON_KEY"
+    SUPABASE_SERVICE_KEY: str = "REMOVED_SUPABASE_SERVICE_KEY"
+
+    # Database - local SQLite for dev, Supabase client for production data
+    DATABASE_URL: str = "sqlite:///./nightshift_local.db"
 
     # Authentication
     JWT_SECRET: str = "change-this-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
+
+    # Admin Mode
+    ADMIN_EMAIL: str = "admin@nightshift.app"
+    ADMIN_PASSWORD: str = "nightshift-admin-2026"
 
     # Anthropic (Claude)
     ANTHROPIC_API_KEY: str = ""
@@ -24,7 +33,8 @@ class Settings(BaseSettings):
     TWOCAPTCHA_API_KEY: str = ""
 
     # Google Services
-    GOOGLE_SHEETS_CREDENTIALS: str = ""  # JSON string
+    GOOGLE_SHEETS_API_KEY: str = ""
+    GOOGLE_SHEETS_CREDENTIALS: str = ""  # JSON string (for service account)
     GMAIL_CREDENTIALS: str = ""  # JSON string
 
     # Stripe

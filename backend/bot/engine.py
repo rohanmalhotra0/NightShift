@@ -12,16 +12,16 @@ from dataclasses import dataclass, field
 from playwright.async_api import async_playwright, Page, Browser, BrowserContext
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..database import (
+from config import settings
+from database import (
     Job, Application, User, UserPrefs, Resume, Metric,
     ApplicationStatus, get_db_context,
 )
-from .captcha import CaptchaSolver, detect_captcha_type, inject_captcha_solution
-from .autofill import (
+from bot.captcha import CaptchaSolver, detect_captcha_type, inject_captcha_solution
+from bot.autofill import (
     AutoFiller, UserProfile, extract_form_fields, fill_form_fields,
 )
-from .gmail import wait_for_verification_code
+from bot.gmail import wait_for_verification_code
 
 logger = logging.getLogger(__name__)
 

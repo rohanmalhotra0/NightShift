@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import anthropic
 
-from ..config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

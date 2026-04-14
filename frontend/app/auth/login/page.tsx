@@ -6,10 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Moon } from 'lucide-react';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { useAuth } from '@/lib/auth';
 
 const loginSchema = z.object({
@@ -49,53 +45,91 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Link href="/" className="inline-flex items-center justify-center space-x-2 mb-4">
-            <Moon className="h-8 w-8 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">NightShift</span>
+    <div className="min-h-screen bg-[var(--night)] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Stars background */}
+      <div className="stars" />
+
+      {/* Moon */}
+      <div className="absolute top-16 right-32 w-[72px] h-[72px] rounded-full bg-[#f0e8c8] shadow-[0_0_40px_rgba(240,232,200,0.3),0_0_80px_rgba(240,232,200,0.1)] animate-moonrise hidden lg:block" />
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <Link href="/" className="font-serif text-3xl text-[#f5f2ec] italic">
+            NightShift
           </Link>
-          <CardTitle>Welcome back</CardTitle>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        </div>
+
+        {/* Card */}
+        <div className="border border-[rgba(245,242,236,0.1)] bg-[rgba(13,15,20,0.8)] backdrop-blur-xl p-10">
+          <div className="text-center mb-8">
+            <h1 className="font-serif text-3xl text-[#f5f2ec] mb-2">Welcome back</h1>
+            <p className="text-[rgba(245,242,236,0.4)] text-sm font-light">
+              Sign in to continue your night shift
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
                 {error}
               </div>
             )}
 
-            <Input
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              error={errors.email?.message}
-              {...register('email')}
-            />
+            <div>
+              <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                className="w-full bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light focus:border-[var(--star)] focus:outline-none transition-colors placeholder:text-[rgba(245,242,236,0.2)]"
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="mt-1 text-red-400 text-xs">{errors.email.message}</p>
+              )}
+            </div>
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              error={errors.password?.message}
-              {...register('password')}
-            />
+            <div>
+              <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                className="w-full bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light focus:border-[var(--star)] focus:outline-none transition-colors placeholder:text-[rgba(245,242,236,0.2)]"
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="mt-1 text-red-400 text-xs">{errors.password.message}</p>
+              )}
+            </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading}>
-              Sign in
-            </Button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary w-full disabled:opacity-50"
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
+          <p className="mt-8 text-center text-sm text-[rgba(245,242,236,0.4)]">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/signup" className="text-primary-600 hover:underline font-medium">
+            <Link href="/auth/signup" className="text-[var(--star)] hover:underline">
               Sign up
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Back to home */}
+        <p className="mt-6 text-center">
+          <Link href="/" className="text-[rgba(245,242,236,0.3)] text-xs hover:text-[rgba(245,242,236,0.6)] transition-colors">
+            Back to home
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

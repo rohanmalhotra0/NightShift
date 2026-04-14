@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Background
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..database import (
+from database import (
     get_db, User, UserPrefs, Job, Application, Metric,
     ApplicationStatus, UserTier,
 )
-from .auth import get_current_user
-from ..services.metrics import MetricsTracker
-from ..bot.engine import run_application_batch
+from api.auth import get_current_user
+from services.metrics import MetricsTracker
+from bot.engine import run_application_batch
 
 router = APIRouter()
 
@@ -29,12 +29,12 @@ TIER_LIMITS = {
 
 # Response models
 class ApplicationResponse(BaseModel):
-    id: int
-    job_id: int
+    id: str
+    job_id: Optional[str]
     job_title: str
     company: str
     status: str
-    queued_at: datetime
+    created_at: datetime
     submitted_at: Optional[datetime]
     error_log: Optional[str]
 
@@ -66,6 +66,10 @@ class StatsResponse(BaseModel):
     avg_duration_seconds: float
 
 
+class ApplyRequest(BaseModel):
+    job_ids: list[int]
+
+
 # Routes
 @router.get("", response_model=ApplicationsListResponse)
 async def list_applications(
@@ -89,24 +93,23 @@ async def list_applications(
 
     query = db.query(Application).filter(
         Application.user_id == current_user.id,
-        Application.queued_at >= since,
+        Application.created_at >= since,
     )
 
     if status_filter:
-        try:
-            status_enum = ApplicationStatus(status_filter)
-            query = query.filter(Application.status == status_enum)
-        except ValueError:
+        valid_statuses = {s.value for s in ApplicationStatus}
+        if status_filter not in valid_statuses:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {status_filter}",
             )
+        query = query.filter(Application.status == status_filter)
 
     total = query.count()
 
     offset = (page - 1) * per_page
     applications = query.order_by(
-        Application.queued_at.desc()
+        Application.created_at.desc()
     ).offset(offset).limit(per_page).all()
 
     # Get job info
@@ -121,8 +124,8 @@ async def list_applications(
             job_id=app.job_id,
             job_title=job.title if job else "Unknown",
             company=job.company if job else "Unknown",
-            status=app.status.value,
-            queued_at=app.queued_at,
+            status=app.status if isinstance(app.status, str) else app.status.value,
+            created_at=app.created_at,
             submitted_at=app.submitted_at,
             error_log=app.error_log,
         ))
@@ -145,16 +148,16 @@ async def get_today_applications(
 
     applications = db.query(Application).filter(
         Application.user_id == current_user.id,
-        Application.queued_at >= today_start,
+        Application.created_at >= today_start,
     ).all()
 
     # Get tier limit
     limit = TIER_LIMITS.get(current_user.tier, 0)
 
-    submitted = sum(1 for a in applications if a.status == ApplicationStatus.SUBMITTED)
-    failed = sum(1 for a in applications if a.status == ApplicationStatus.FAILED)
-    pending = sum(1 for a in applications if a.status == ApplicationStatus.PENDING)
-    in_progress = sum(1 for a in applications if a.status == ApplicationStatus.IN_PROGRESS)
+    submitted = sum(1 for a in applications if a.status in ("submitted", ApplicationStatus.SUBMITTED))
+    failed = sum(1 for a in applications if a.status in ("failed", ApplicationStatus.FAILED))
+    pending = sum(1 for a in applications if a.status in ("pending", ApplicationStatus.PENDING))
+    in_progress = sum(1 for a in applications if a.status in ("in_progress", ApplicationStatus.IN_PROGRESS))
 
     return {
         "submitted": submitted,
@@ -211,7 +214,7 @@ async def get_daily_stats(
 
 @router.get("/{application_id}", response_model=ApplicationDetailResponse)
 async def get_application(
-    application_id: int,
+    application_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -235,11 +238,9 @@ async def get_application(
     metrics_dict = None
     if metric:
         metrics_dict = {
-            "tokens_input": metric.tokens_input,
-            "tokens_output": metric.tokens_output,
+            "tokens_used": metric.tokens_used,
             "captcha_cost": metric.captcha_cost,
-            "claude_cost": metric.claude_cost,
-            "duration_sec": metric.duration_sec,
+            "duration_seconds": metric.duration_seconds,
         }
 
     return ApplicationDetailResponse(
@@ -248,8 +249,8 @@ async def get_application(
         job_title=job.title if job else "Unknown",
         company=job.company if job else "Unknown",
         job_url=job.url if job else "",
-        status=application.status.value,
-        queued_at=application.queued_at,
+        status=application.status if isinstance(application.status, str) else application.status.value,
+        created_at=application.created_at,
         submitted_at=application.submitted_at,
         error_log=application.error_log,
         answers_json=application.answers_json,
@@ -261,7 +262,7 @@ async def get_application(
 
 @router.post("/{application_id}/retry")
 async def retry_application(
-    application_id: int,
+    application_id: str,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -278,7 +279,7 @@ async def retry_application(
             detail="Application not found",
         )
 
-    if application.status not in (ApplicationStatus.FAILED, ApplicationStatus.SKIPPED):
+    if application.status not in (ApplicationStatus.FAILED, ApplicationStatus.SKIPPED, "failed", "skipped"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only failed or skipped applications can be retried",
@@ -293,7 +294,7 @@ async def retry_application(
         )
 
     # Reset application status
-    application.status = ApplicationStatus.PENDING
+    application.status = ApplicationStatus.PENDING.value
     application.error_log = None
     application.retry_count += 1
     db.commit()
@@ -311,7 +312,7 @@ async def retry_application(
 
 @router.post("/apply")
 async def apply_to_jobs(
-    job_ids: list[int],
+    request: ApplyRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -321,6 +322,8 @@ async def apply_to_jobs(
 
     This endpoint accepts a list of job IDs and queues them for application.
     """
+    job_ids = request.job_ids
+
     # Check tier limit
     limit = TIER_LIMITS.get(current_user.tier, 0)
     if limit == 0:
@@ -333,8 +336,8 @@ async def apply_to_jobs(
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_count = db.query(Application).filter(
         Application.user_id == current_user.id,
-        Application.queued_at >= today_start,
-        Application.status == ApplicationStatus.SUBMITTED,
+        Application.created_at >= today_start,
+        Application.status == ApplicationStatus.SUBMITTED.value,
     ).count()
 
     remaining = limit - today_count
@@ -367,7 +370,7 @@ async def apply_to_jobs(
         application = Application(
             user_id=current_user.id,
             job_id=job_id,
-            status=ApplicationStatus.PENDING,
+            status=ApplicationStatus.PENDING.value,
         )
         db.add(application)
 
