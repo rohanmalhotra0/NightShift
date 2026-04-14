@@ -21,11 +21,11 @@ type JobStats = {
 };
 
 type Application = {
-  id: number;
+  id: string;
   job_title: string;
   company: string;
   status: string;
-  queued_at: string;
+  created_at: string;
   submitted_at: string | null;
 };
 
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                           {app.status === 'submitted' ? '✓ Submitted' : app.status}
                         </p>
                         <p className="text-xs text-[var(--muted)]">
-                          {new Date(app.submitted_at || app.queued_at).toLocaleDateString()}
+                          {new Date(app.submitted_at || app.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

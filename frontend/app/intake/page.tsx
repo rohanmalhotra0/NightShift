@@ -2,10 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Moon, ArrowLeft, ArrowRight, Upload, X, Check } from 'lucide-react';
-import { Button } from '@/components/Button';
-import { Input } from '@/components/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
+import { ArrowLeft, ArrowRight, Upload, X, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { users } from '@/lib/api';
 
@@ -99,11 +96,8 @@ export default function IntakePage() {
 
   const handleSubmit = async () => {
     if (!token) return;
-
     setIsSubmitting(true);
-
     try {
-      // Update preferences
       const titles = data.customTitle
         ? [...data.jobTitles, data.customTitle]
         : data.jobTitles;
@@ -117,17 +111,13 @@ export default function IntakePage() {
         generate_cover_letter: data.generateCoverLetter,
       });
 
-      // Upload resume if provided
       if (data.resumeFile) {
         const formData = new FormData();
         formData.append('file', data.resumeFile);
         formData.append('is_primary', 'true');
-
         await fetch('/api/users/resume', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
       }
@@ -142,80 +132,87 @@ export default function IntakePage() {
 
   const canProceed = () => {
     switch (step) {
-      case 1:
-        return data.jobTitles.length > 0 || data.customTitle;
-      case 2:
-        return data.locations.length > 0;
-      case 3:
-        return true; // Salary is optional
-      case 4:
-        return data.workAuth !== '';
-      case 5:
-        return true; // Resume is optional
-      default:
-        return false;
+      case 1: return data.jobTitles.length > 0 || data.customTitle !== '';
+      case 2: return data.locations.length > 0;
+      case 3: return true;
+      case 4: return data.workAuth !== '';
+      case 5: return true;
+      default: return false;
     }
   };
 
+  const stepTitles = [
+    'What job titles are you looking for?',
+    'Where do you want to work?',
+    'Salary & work preferences',
+    'Work authorization',
+    'Upload your resume',
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Moon className="h-8 w-8 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">NightShift</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Set up your preferences</h1>
-          <p className="text-gray-500 mt-1">Step {step} of {totalSteps}</p>
-        </div>
+    <div className="min-h-screen bg-[var(--night)] relative">
+      {/* Stars */}
+      <div className="stars fixed inset-0 pointer-events-none" />
 
-        {/* Progress bar */}
-        <div className="mb-8">
-          <div className="h-2 bg-gray-200 rounded-full">
-            <div
-              className="h-2 bg-primary-600 rounded-full transition-all"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
-            />
-          </div>
-        </div>
+      <div className="relative z-10 py-12 px-4">
+        <div className="max-w-2xl mx-auto">
 
-        {/* Step content */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {step === 1 && 'What job titles are you looking for?'}
-              {step === 2 && 'Where do you want to work?'}
-              {step === 3 && 'Salary & work preferences'}
-              {step === 4 && 'Work authorization'}
-              {step === 5 && 'Upload your resume'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          {/* Header */}
+          <div className="text-center mb-10">
+            <div className="font-serif text-2xl text-[#f5f2ec] italic mb-6">NightShift</div>
+            <h1 className="font-serif text-3xl text-[#f5f2ec] mb-2">Set up your preferences</h1>
+            <p className="text-[rgba(245,242,236,0.4)] text-sm tracking-wide">
+              Step {step} of {totalSteps}
+            </p>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="h-px bg-[rgba(245,242,236,0.08)] relative">
+              <div
+                className="h-px bg-[var(--star)] transition-all duration-500 absolute top-0 left-0"
+                style={{ width: `${(step / totalSteps) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Card */}
+          <div className="border border-[rgba(245,242,236,0.08)] bg-[rgba(245,242,236,0.02)] p-8">
+            {/* Step title */}
+            <h2 className="font-serif text-xl text-[#f5f2ec] mb-6">
+              {stepTitles[step - 1]}
+            </h2>
+
             {/* Step 1: Job Titles */}
             {step === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex flex-wrap gap-2">
                   {JOB_TITLES.map((title) => (
                     <button
                       key={title}
                       onClick={() => toggleSelection('jobTitles', title)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 text-sm font-light transition-all ${
                         data.jobTitles.includes(title)
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-[var(--star)] text-[var(--night)] font-medium'
+                          : 'border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
                       }`}
                     >
                       {title}
                     </button>
                   ))}
                 </div>
-                <Input
-                  label="Or add a custom title"
-                  placeholder="e.g., Cloud Engineer"
-                  value={data.customTitle}
-                  onChange={(e) => setData((prev) => ({ ...prev, customTitle: e.target.value }))}
-                />
+                <div>
+                  <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
+                    Or add a custom title
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Cloud Engineer"
+                    value={data.customTitle}
+                    onChange={(e) => setData((prev) => ({ ...prev, customTitle: e.target.value }))}
+                    className="w-full bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light placeholder-[rgba(245,242,236,0.25)] focus:border-[var(--star)] focus:outline-none transition-colors"
+                  />
+                </div>
               </div>
             )}
 
@@ -226,10 +223,10 @@ export default function IntakePage() {
                   <button
                     key={location}
                     onClick={() => toggleSelection('locations', location)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 text-sm font-light transition-all ${
                       data.locations.includes(location)
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-[var(--star)] text-[var(--night)] font-medium'
+                        : 'border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
                     }`}
                   >
                     {location}
@@ -240,16 +237,21 @@ export default function IntakePage() {
 
             {/* Step 3: Salary & Remote */}
             {step === 3 && (
-              <div className="space-y-6">
-                <Input
-                  label="Minimum salary (optional)"
-                  type="number"
-                  placeholder="e.g., 100000"
-                  value={data.salaryMin}
-                  onChange={(e) => setData((prev) => ({ ...prev, salaryMin: e.target.value }))}
-                />
+              <div className="space-y-8">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
+                    Minimum salary (optional)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 100000"
+                    value={data.salaryMin}
+                    onChange={(e) => setData((prev) => ({ ...prev, salaryMin: e.target.value }))}
+                    className="w-full bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light placeholder-[rgba(245,242,236,0.25)] focus:border-[var(--star)] focus:outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-3">
                     Remote preference
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -257,10 +259,10 @@ export default function IntakePage() {
                       <button
                         key={pref.value}
                         onClick={() => setData((prev) => ({ ...prev, remotePref: pref.value }))}
-                        className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors border ${
+                        className={`px-4 py-3 text-sm font-light transition-all ${
                           data.remotePref === pref.value
-                            ? 'border-primary-600 bg-primary-50 text-primary-700'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                            ? 'bg-[var(--star)] text-[var(--night)] font-medium'
+                            : 'border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
                         }`}
                       >
                         {pref.label}
@@ -278,14 +280,14 @@ export default function IntakePage() {
                   <button
                     key={option}
                     onClick={() => setData((prev) => ({ ...prev, workAuth: option }))}
-                    className={`w-full px-4 py-3 rounded-lg text-left text-sm font-medium transition-colors border flex items-center justify-between ${
+                    className={`w-full px-4 py-3 text-left text-sm font-light transition-all flex items-center justify-between ${
                       data.workAuth === option
-                        ? 'border-primary-600 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        ? 'bg-[var(--star)] text-[var(--night)] font-medium'
+                        : 'border border-[rgba(245,242,236,0.1)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
                     }`}
                   >
                     {option}
-                    {data.workAuth === option && <Check className="h-5 w-5" />}
+                    {data.workAuth === option && <Check className="h-4 w-4" />}
                   </button>
                 ))}
               </div>
@@ -295,27 +297,29 @@ export default function IntakePage() {
             {step === 5 && (
               <div className="space-y-6">
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center ${
-                    data.resumeFile ? 'border-primary-300 bg-primary-50' : 'border-gray-300'
+                  className={`border border-dashed p-10 text-center transition-colors ${
+                    data.resumeFile
+                      ? 'border-[var(--star)] bg-[rgba(200,185,122,0.05)]'
+                      : 'border-[rgba(245,242,236,0.15)] hover:border-[rgba(245,242,236,0.3)]'
                   }`}
                 >
                   {data.resumeFile ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <span className="text-sm text-gray-700">{data.resumeFile.name}</span>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-sm text-[rgba(245,242,236,0.8)]">{data.resumeFile.name}</span>
                       <button
                         onClick={() => setData((prev) => ({ ...prev, resumeFile: null }))}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors"
                       >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
-                    <label className="cursor-pointer">
-                      <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                      <p className="text-sm text-gray-600">
-                        <span className="text-primary-600 font-medium">Click to upload</span> or drag and drop
+                    <label className="cursor-pointer block">
+                      <Upload className="h-8 w-8 text-[rgba(245,242,236,0.25)] mx-auto mb-3" />
+                      <p className="text-sm text-[rgba(245,242,236,0.5)]">
+                        <span className="text-[var(--star)]">Click to upload</span> or drag and drop
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">PDF or Word (max 10MB)</p>
+                      <p className="text-xs text-[rgba(245,242,236,0.25)] mt-2">PDF or Word · max 10MB</p>
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx"
@@ -326,45 +330,57 @@ export default function IntakePage() {
                   )}
                 </div>
 
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={data.generateCoverLetter}
-                    onChange={(e) =>
-                      setData((prev) => ({ ...prev, generateCoverLetter: e.target.checked }))
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div
+                    onClick={() =>
+                      setData((prev) => ({ ...prev, generateCoverLetter: !prev.generateCoverLetter }))
                     }
-                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Generate cover letters with AI for each application
+                    className={`w-5 h-5 border flex items-center justify-center transition-colors cursor-pointer ${
+                      data.generateCoverLetter
+                        ? 'bg-[var(--star)] border-[var(--star)]'
+                        : 'border-[rgba(245,242,236,0.2)] hover:border-[var(--star)]'
+                    }`}
+                  >
+                    {data.generateCoverLetter && <Check className="h-3 w-3 text-[var(--night)]" />}
+                  </div>
+                  <span className="text-sm text-[rgba(245,242,236,0.6)] font-light group-hover:text-[rgba(245,242,236,0.9)] transition-colors">
+                    Generate AI cover letters for each application
                   </span>
                 </label>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setStep((s) => s - 1)}
-            disabled={step === 1}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          {/* Navigation */}
+          <div className="flex justify-between mt-6">
+            <button
+              onClick={() => setStep((s) => s - 1)}
+              disabled={step === 1}
+              className="flex items-center gap-2 px-6 py-3 text-sm border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.5)] hover:border-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
 
-          {step < totalSteps ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canProceed()}>
-              Complete Setup
-            </Button>
-          )}
+            {step < totalSteps ? (
+              <button
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canProceed()}
+                className="flex items-center gap-2 btn-primary disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Saving...' : 'Complete Setup'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
