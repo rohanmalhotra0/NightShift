@@ -61,7 +61,7 @@ export const auth = {
     }),
 
   getMe: (token: string) =>
-    request<{ id: number; email: string; tier: string }>('/auth/me', { token }),
+    request<{ id: string; email: string; tier: string; is_admin: boolean }>('/auth/me', { token }),
 };
 
 // Users
@@ -81,7 +81,7 @@ export const users = {
     request('/users/prefs', { method: 'PUT', body: prefs, token }),
 
   getResumes: (token: string) =>
-    request<{ id: number; filename: string; is_primary: boolean }[]>('/users/resumes', { token }),
+    request<{ id: string; filename: string; is_primary: boolean }[]>('/users/resumes', { token }),
 
   createSheet: (token: string) =>
     request<{ sheets_id: string; url: string }>('/users/sheets/create', { method: 'POST', token }),
@@ -97,14 +97,16 @@ export const jobs = {
       : '';
     return request<{
       jobs: Array<{
-        id: number;
+        id: string;
         title: string;
         company: string;
-        location: string;
+        location: string | null;
         url: string;
         source: string;
+        salary_range: string | null;
         is_easy_apply: boolean;
         has_applied: boolean;
+        scraped_at: string;
       }>;
       total: number;
       page: number;
@@ -112,13 +114,17 @@ export const jobs = {
     }>(`/jobs${query}`, { token });
   },
 
-  get: (token: string, jobId: number) =>
+  get: (token: string, jobId: string) =>
     request<{
-      id: number;
+      id: string;
       title: string;
       company: string;
-      description: string;
+      location: string | null;
+      description: string | null;
       url: string;
+      salary_range: string | null;
+      is_easy_apply: boolean;
+      has_applied: boolean;
     }>(`/jobs/${jobId}`, { token }),
 
   stats: (token: string) =>
@@ -139,14 +145,18 @@ export const applications = {
       : '';
     return request<{
       applications: Array<{
-        id: number;
+        id: string;
+        job_id: string | null;
         job_title: string;
         company: string;
         status: string;
-        queued_at: string;
+        created_at: string;
         submitted_at: string | null;
+        error_log: string | null;
       }>;
       total: number;
+      page: number;
+      per_page: number;
     }>(`/applications${query}`, { token });
   },
 
@@ -155,6 +165,8 @@ export const applications = {
       submitted: number;
       failed: number;
       pending: number;
+      in_progress: number;
+      total: number;
       daily_limit: number;
       remaining: number;
     }>('/applications/today', { token }),
@@ -163,14 +175,22 @@ export const applications = {
     request<{
       total_applications: number;
       successful_applications: number;
+      failed_applications: number;
       success_rate: number;
       total_cost: number;
+      avg_duration_seconds: number;
     }>(`/applications/stats${days ? `?days=${days}` : ''}`, { token }),
 
-  apply: (token: string, jobIds: number[]) =>
-    request<{ queued: number }>('/applications/apply', {
+  apply: (token: string, jobIds: string[]) =>
+    request<{ queued: number; skipped: number }>('/applications/apply', {
       method: 'POST',
       body: { job_ids: jobIds },
+      token,
+    }),
+
+  retry: (token: string, applicationId: string) =>
+    request<{ message: string }>(`/applications/${applicationId}/retry`, {
+      method: 'POST',
       token,
     }),
 };

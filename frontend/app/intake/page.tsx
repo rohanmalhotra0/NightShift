@@ -52,6 +52,7 @@ type IntakeData = {
   jobTitles: string[];
   customTitle: string;
   locations: string[];
+  customLocation: string;
   salaryMin: string;
   workAuth: string;
   remotePref: string;
@@ -69,12 +70,27 @@ export default function IntakePage() {
     jobTitles: [],
     customTitle: '',
     locations: [],
+    customLocation: '',
     salaryMin: '',
     workAuth: '',
     remotePref: 'any',
     resumeFile: null,
     generateCoverLetter: false,
   });
+
+  const addCustomTitle = () => {
+    const title = data.customTitle.trim();
+    if (title && !data.jobTitles.includes(title)) {
+      setData((prev) => ({ ...prev, jobTitles: [...prev.jobTitles, title], customTitle: '' }));
+    }
+  };
+
+  const addCustomLocation = () => {
+    const loc = data.customLocation.trim();
+    if (loc && !data.locations.includes(loc)) {
+      setData((prev) => ({ ...prev, locations: [...prev.locations, loc], customLocation: '' }));
+    }
+  };
 
   const totalSteps = 5;
 
@@ -200,38 +216,94 @@ export default function IntakePage() {
                       {title}
                     </button>
                   ))}
+                  {/* Custom titles added by user */}
+                  {data.jobTitles.filter(t => !JOB_TITLES.includes(t)).map((title) => (
+                    <button
+                      key={title}
+                      onClick={() => toggleSelection('jobTitles', title)}
+                      className="px-4 py-2 text-sm font-medium transition-all bg-[var(--star)] text-[var(--night)] flex items-center gap-2"
+                    >
+                      {title}
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
                 </div>
                 <div>
                   <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
-                    Or add a custom title
+                    Add a custom title — press Enter
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Cloud Engineer"
-                    value={data.customTitle}
-                    onChange={(e) => setData((prev) => ({ ...prev, customTitle: e.target.value }))}
-                    className="w-full bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light placeholder-[rgba(245,242,236,0.25)] focus:border-[var(--star)] focus:outline-none transition-colors"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., Cloud Engineer"
+                      value={data.customTitle}
+                      onChange={(e) => setData((prev) => ({ ...prev, customTitle: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTitle(); } }}
+                      className="flex-1 bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light placeholder-[rgba(245,242,236,0.25)] focus:border-[var(--star)] focus:outline-none transition-colors"
+                    />
+                    <button
+                      onClick={addCustomTitle}
+                      disabled={!data.customTitle.trim()}
+                      className="px-4 py-3 bg-[var(--star)] text-[var(--night)] text-sm font-medium disabled:opacity-30 transition-opacity"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Step 2: Locations */}
             {step === 2 && (
-              <div className="flex flex-wrap gap-2">
-                {LOCATIONS.map((location) => (
-                  <button
-                    key={location}
-                    onClick={() => toggleSelection('locations', location)}
-                    className={`px-4 py-2 text-sm font-light transition-all ${
-                      data.locations.includes(location)
-                        ? 'bg-[var(--star)] text-[var(--night)] font-medium'
-                        : 'border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
-                    }`}
-                  >
-                    {location}
-                  </button>
-                ))}
+              <div className="space-y-6">
+                <div className="flex flex-wrap gap-2">
+                  {LOCATIONS.map((location) => (
+                    <button
+                      key={location}
+                      onClick={() => toggleSelection('locations', location)}
+                      className={`px-4 py-2 text-sm font-light transition-all ${
+                        data.locations.includes(location)
+                          ? 'bg-[var(--star)] text-[var(--night)] font-medium'
+                          : 'border border-[rgba(245,242,236,0.15)] text-[rgba(245,242,236,0.6)] hover:border-[var(--star)] hover:text-[rgba(245,242,236,0.9)]'
+                      }`}
+                    >
+                      {location}
+                    </button>
+                  ))}
+                  {/* Custom locations added by user */}
+                  {data.locations.filter(l => !LOCATIONS.includes(l)).map((loc) => (
+                    <button
+                      key={loc}
+                      onClick={() => toggleSelection('locations', loc)}
+                      className="px-4 py-2 text-sm font-medium transition-all bg-[var(--star)] text-[var(--night)] flex items-center gap-2"
+                    >
+                      {loc}
+                      <X className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <label className="block text-[11px] tracking-widest uppercase text-[rgba(245,242,236,0.4)] mb-2">
+                    Add any city, state, or country — press Enter
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., London, UK or Toronto, Canada"
+                      value={data.customLocation}
+                      onChange={(e) => setData((prev) => ({ ...prev, customLocation: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomLocation(); } }}
+                      className="flex-1 bg-transparent border border-[rgba(245,242,236,0.1)] px-4 py-3 text-[#f5f2ec] text-sm font-light placeholder-[rgba(245,242,236,0.25)] focus:border-[var(--star)] focus:outline-none transition-colors"
+                    />
+                    <button
+                      onClick={addCustomLocation}
+                      disabled={!data.customLocation.trim()}
+                      className="px-4 py-3 bg-[var(--star)] text-[var(--night)] text-sm font-medium disabled:opacity-30 transition-opacity"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

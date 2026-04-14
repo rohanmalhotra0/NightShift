@@ -117,6 +117,8 @@ export default function DashboardPage() {
             NightShift
           </Link>
           <div className="flex items-center gap-6">
+            <Link href="/jobs" className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Browse Jobs</Link>
+            <Link href="/applications" className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Applications</Link>
             <span className="text-sm text-[rgba(245,242,236,0.5)]">{user.email}</span>
             <span className={`px-3 py-1 text-[10px] font-medium tracking-widest uppercase ${
               isAdmin
@@ -125,18 +127,8 @@ export default function DashboardPage() {
             }`}>
               {isAdmin ? 'Admin' : user.tier}
             </span>
-            <Link
-              href="/intake"
-              className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors"
-            >
-              Settings
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors"
-            >
-              Logout
-            </button>
+            <Link href="/intake" className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Settings</Link>
+            <button onClick={handleLogout} className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Logout</button>
           </div>
         </div>
       </header>
