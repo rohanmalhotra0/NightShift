@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Supabase
-    SUPABASE_URL: str = "REMOVED_SUPABASE_URL"
-    SUPABASE_ANON_KEY: str = "REMOVED_SUPABASE_ANON_KEY"
-    SUPABASE_SERVICE_KEY: str = "REMOVED_SUPABASE_SERVICE_KEY"
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
 
     # Database - local SQLite for dev, Supabase client for production data
     DATABASE_URL: str = "sqlite:///./nightshift_local.db"
