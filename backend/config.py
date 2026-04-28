@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
+    # Price IDs from Stripe dashboard (test mode is fine for dev).
+    # If unset, the corresponding tier cannot be checked out.
+    STRIPE_PRICE_ID_STARTER: str = ""
+    STRIPE_PRICE_ID_PRO: str = ""
+    STRIPE_PRICE_ID_MAX: str = ""
 
     # Application settings
     UPLOADS_DIR: Path = Path("./uploads")

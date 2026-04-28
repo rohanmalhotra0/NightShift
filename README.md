@@ -129,7 +129,35 @@ docker-compose up -d
 ### Payments
 - `GET /payments/pricing` - Get pricing tiers
 - `POST /payments/checkout` - Create checkout session
-- `GET /payments/subscription` - Get subscription status
+- `GET /payments/subscription` - Get subscription status (reads persisted user record)
+- `POST /payments/cancel` - Cancel current subscription at period end
+- `POST /payments/portal` - Create Stripe Billing Portal session
+- `POST /payments/webhook` - Stripe webhook receiver (signature-verified, idempotent)
+
+#### Stripe webhook setup
+
+The webhook endpoint at `/payments/webhook` handles:
+
+| Event | Effect |
+|-------|--------|
+| `checkout.session.completed` | Optimistically marks user active for the requested tier |
+| `customer.subscription.created` / `updated` | Syncs `tier`, `subscription_status`, `current_period_end`, `stripe_subscription_id` from the subscription object |
+| `customer.subscription.deleted` | Drops user back to `free`, clears subscription id |
+| `invoice.payment_failed` | Marks `subscription_status = past_due` |
+
+Hardening notes:
+- Requires `STRIPE_WEBHOOK_SECRET`. Returns 503 if unset (won't accept unsigned events even in dev).
+- Every event id is recorded in the `stripe_webhook_events` table for at-most-once processing.
+- A `past_due` status keeps the user's tier active while Stripe retries the charge — only `canceled`/`unpaid`/`incomplete_expired` flip them back to free.
+
+Local testing with the Stripe CLI:
+
+```bash
+stripe listen --forward-to localhost:8000/payments/webhook
+# In another shell:
+stripe trigger checkout.session.completed
+stripe trigger customer.subscription.updated
+```
 
 ## Configuration
 
@@ -142,6 +170,10 @@ docker-compose up -d
 | `GOOGLE_SHEETS_CREDENTIALS` | Service account JSON for Sheets |
 | `GMAIL_CREDENTIALS` | OAuth credentials for Gmail |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE_PRICE_ID_STARTER` | Stripe price id for Starter tier |
+| `STRIPE_PRICE_ID_PRO` | Stripe price id for Pro tier |
+| `STRIPE_PRICE_ID_MAX` | Stripe price id for Max tier |
 | `JWT_SECRET` | Secret for JWT tokens |
 
 ### Subscription Tiers

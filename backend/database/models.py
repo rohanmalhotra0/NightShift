@@ -58,7 +58,10 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    stripe_customer_id = Column(String(255), nullable=True)
+    stripe_customer_id = Column(String(255), nullable=True, index=True)
+    stripe_subscription_id = Column(String(255), nullable=True, index=True)
+    subscription_status = Column(String(32), nullable=True)
+    current_period_end = Column(DateTime, nullable=True)
     tier = Column(String(20), default="free")
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
@@ -214,3 +217,17 @@ class ContactSubmission(Base):
     subject = Column(String(255), nullable=True)
     message = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class StripeWebhookEvent(Base):
+    """Tracks processed Stripe webhook event IDs to enforce idempotency.
+
+    Stripe retries webhooks on non-2xx responses and may also redeliver
+    events; the event id is the unique key we dedupe on.
+    """
+    __tablename__ = "stripe_webhook_events"
+
+    # Stripe event id, e.g. "evt_1NXXXXX..."
+    event_id = Column(String(255), primary_key=True)
+    event_type = Column(String(100), nullable=False)
+    received_at = Column(DateTime, default=datetime.utcnow, nullable=False)
