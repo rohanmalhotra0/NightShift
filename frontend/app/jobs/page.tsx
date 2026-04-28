@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { jobs, applications } from '@/lib/api';
+import { jobs, applications, ApiError } from '@/lib/api';
 
 type Job = {
   id: string;
@@ -90,8 +90,13 @@ export default function JobsPage() {
       setApplyResult(`Queued ${result.queued} application${result.queued !== 1 ? 's' : ''}. The bot will apply tonight.`);
       setSelected(new Set());
       await fetchJobs();
-    } catch (e: any) {
-      setApplyResult(e.message || 'Failed to queue applications');
+    } catch (e: unknown) {
+      if (e instanceof ApiError && e.isPaywall) {
+        router.push('/pricing');
+        return;
+      }
+      const message = e instanceof Error ? e.message : 'Failed to queue applications';
+      setApplyResult(message);
     } finally {
       setApplying(false);
     }

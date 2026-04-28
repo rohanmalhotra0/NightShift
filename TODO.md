@@ -13,19 +13,19 @@ The `nightshift-autopilot` scheduled task reads this file at the start of every 
 - [x] Tests: webhook signature verification, status transitions (active → canceled → past_due)
 
 ### 2. Auth + gated routes
-- [ ] Pick auth approach (NextAuth / Clerk / Supabase / custom) and document the choice in README
-- [ ] Sign up + log in flows
-- [ ] Session middleware
-- [ ] `requirePaid()` helper that redirects free users to `/pricing`
-- [ ] Apply gating to actual paid routes/features (list them here as you find them)
-- [ ] Tests: free user → redirected, paid user → access granted, expired sub → redirected
+- [x] Pick auth approach (NextAuth / Clerk / Supabase / custom) and document the choice in README — custom JWT (FastAPI + bcrypt + jwt)
+- [x] Sign up + log in flows
+- [x] Session middleware (FastAPI `HTTPBearer` + `get_current_user` dep; frontend `AuthProvider`)
+- [x] `require_paid_user()` dep that returns 402 + `upgrade_url`; frontend `useRequirePaid()` hook redirects to `/pricing`
+- [x] Apply gating to actual paid routes/features — `/applications/apply`, `/applications/{id}/retry`
+- [x] Tests: free user → 402, paid user (active/trialing/past_due) → access granted, canceled sub → 402, admin → bypass
 
 ### 3. Pricing page + upgrade UX
-- [ ] `/pricing` route — public, lists plans, "Upgrade" CTA → `/api/checkout`
-- [ ] `/checkout/success` — confirms purchase, refreshes session
-- [ ] `/checkout/cancel` — graceful return
+- [x] `/pricing` route — public, lists plans, "Upgrade" CTA → `/payments/checkout`
+- [x] `/checkout/success` — polls `/auth/me` until subscription_status flips active; 30s timeout fallback
+- [x] `/checkout/cancel` — graceful return
 - [ ] Account/billing page — current plan, "Manage subscription" → Stripe Billing Portal
-- [ ] Empty/loading/error states
+- [x] Empty/loading/error states (skeleton tiers, Suspense boundaries, 503/401 handling on checkout)
 
 ### 4. Tests + deploy
 - [ ] Set up CI (GitHub Actions): lint, typecheck, test, build on every PR

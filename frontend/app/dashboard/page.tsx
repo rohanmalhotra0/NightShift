@@ -283,7 +283,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-[rgba(245,242,236,0.5)] mb-4">
                     Choose a plan to enable automated applications
                   </p>
-                  <Link href="/#pricing" className="btn-primary text-xs py-2 px-4 inline-block">
+                  <Link href="/pricing" className="btn-primary text-xs py-2 px-4 inline-block">
                     View Plans
                   </Link>
                 </div>
