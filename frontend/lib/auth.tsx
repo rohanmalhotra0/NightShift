@@ -12,6 +12,8 @@ type User = {
   email: string;
   tier: string;
   is_admin: boolean;
+  subscription_status: string | null;
+  current_period_end: string | null;
 };
 
 type AuthContextType = {
@@ -21,7 +23,21 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<User | null>;
 };
+
+// Subscription statuses that grant access. Mirrors the backend's set in
+// api/auth.py::_PAID_ACCESS_STATUSES — kept in sync manually.
+const PAID_ACCESS_STATUSES = new Set(['active', 'trialing', 'past_due']);
+
+export function isPaidUser(user: User | null): boolean {
+  if (!user) return false;
+  if (user.is_admin) return true;
+  if (user.tier === 'free') return false;
+  return user.subscription_status
+    ? PAID_ACCESS_STATUSES.has(user.subscription_status)
+    : false;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -70,8 +86,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const refreshUser = async (): Promise<User | null> => {
+    const t = token ?? localStorage.getItem(TOKEN_KEY);
+    if (!t) return null;
+    try {
+      const userData = await authApi.getMe(t);
+      setUser(userData);
+      return userData;
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, isLoading, login, signup, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

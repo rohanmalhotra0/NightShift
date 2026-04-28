@@ -110,7 +110,11 @@ docker-compose up -d
 ### Authentication
 - `POST /auth/signup` - Create account
 - `POST /auth/login` - Login
-- `GET /auth/me` - Get current user
+- `GET /auth/me` - Get current user (includes `tier`, `subscription_status`, `current_period_end`)
+
+**Approach:** custom FastAPI auth — bcrypt for password hashing, JWT (HS256) for sessions, `HTTPBearer` on protected routes. Chosen over NextAuth/Clerk/Supabase because the backend is Python (FastAPI) and we want a single source of truth for the user record (subscription state lives in the same DB row as the auth record). The frontend stores the JWT in `localStorage` and re-hydrates the user on mount via `/auth/me`.
+
+**Paywall gate:** `require_paid_user` (in `backend/api/auth.py`) is a FastAPI dependency that returns **402 Payment Required** with body `{"code": "subscription_required", "upgrade_url": "/pricing", ...}` when the user is on `tier=free` or has a non-access subscription_status. Statuses `active`, `trialing`, and `past_due` keep access; admins always pass. Currently applied to `POST /applications/apply` and `POST /applications/{id}/retry`.
 
 ### Users
 - `GET /users/prefs` - Get preferences
@@ -158,6 +162,18 @@ stripe listen --forward-to localhost:8000/payments/webhook
 stripe trigger checkout.session.completed
 stripe trigger customer.subscription.updated
 ```
+
+#### Frontend paywall flow
+
+Public pages: `/`, `/pricing`, `/auth/login`, `/auth/signup`, `/checkout/success`, `/checkout/cancel`.
+
+When a free or expired user hits a paid action (e.g. clicking "Apply" on `/jobs`), the API returns 402 and the client-side `ApiError.isPaywall` triggers a redirect to `/pricing`. The pricing page reads tiers from `GET /payments/pricing`, and clicking "Upgrade" calls `POST /payments/checkout` then `window.location.assign(checkout_url)` to hand off to Stripe.
+
+After payment, Stripe redirects to `/checkout/success?session_id=...`. That page polls `/auth/me` every 1.5s until `subscription_status` flips into the active set (with a 30s soft timeout that still shows a "your account will update shortly" CTA — the webhook is authoritative). `/checkout/cancel` is a graceful return that links back to `/pricing` and `/dashboard`.
+
+Helper hooks for protected client routes:
+- `useRequireAuth()` — redirects anon users to `/auth/login?next=<path>`.
+- `useRequirePaid()` — additionally redirects free/expired users to `/pricing`.
 
 ## Configuration
 
