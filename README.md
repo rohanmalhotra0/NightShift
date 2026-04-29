@@ -133,10 +133,17 @@ docker-compose up -d
 ### Payments
 - `GET /payments/pricing` - Get pricing tiers
 - `POST /payments/checkout` - Create checkout session
-- `GET /payments/subscription` - Get subscription status (reads persisted user record)
-- `POST /payments/cancel` - Cancel current subscription at period end
-- `POST /payments/portal` - Create Stripe Billing Portal session
+- `GET /payments/subscription` - Get subscription status (reads persisted user record, includes `cancel_at_period_end`)
+- `POST /payments/cancel` - Schedule cancellation at period end (sets `cancel_at_period_end=true`)
+- `POST /payments/resume` - Undo a pending cancellation (clears `cancel_at_period_end`)
+- `POST /payments/portal` - Create Stripe Billing Portal session (JSON body: `{"return_url": "..."}`)
 - `POST /payments/webhook` - Stripe webhook receiver (signature-verified, idempotent)
+
+The frontend exposes `/account/billing` for users to view current plan,
+schedule/undo cancellation, and open the Stripe portal. Any 402
+response with `upgrade_url` is auto-redirected to `/pricing?from=gate`
+by the global API client, so new gated endpoints get the same UX
+without per-page handling.
 
 #### Stripe webhook setup
 
@@ -145,7 +152,7 @@ The webhook endpoint at `/payments/webhook` handles:
 | Event | Effect |
 |-------|--------|
 | `checkout.session.completed` | Optimistically marks user active for the requested tier |
-| `customer.subscription.created` / `updated` | Syncs `tier`, `subscription_status`, `current_period_end`, `stripe_subscription_id` from the subscription object |
+| `customer.subscription.created` / `updated` | Syncs `tier`, `subscription_status`, `current_period_end`, `cancel_at_period_end`, `stripe_subscription_id` from the subscription object |
 | `customer.subscription.deleted` | Drops user back to `free`, clears subscription id |
 | `invoice.payment_failed` | Marks `subscription_status = past_due` |
 

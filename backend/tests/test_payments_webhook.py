@@ -70,6 +70,7 @@ def _subscription_event(
     status: str = "active",
     price_id: str = "price_pro_test",
     period_end_ts: int | None = None,
+    cancel_at_period_end: bool = False,
 ) -> dict:
     period_end_ts = period_end_ts or (int(time.time()) + 30 * 24 * 3600)
     # `object: "event"` marks this as a v1 event (vs v2.core.event) so
@@ -85,6 +86,7 @@ def _subscription_event(
                 "customer": customer_id,
                 "status": status,
                 "current_period_end": period_end_ts,
+                "cancel_at_period_end": cancel_at_period_end,
                 "items": {
                     "object": "list",
                     "data": [{"price": {"id": price_id, "object": "price"}}],
@@ -285,6 +287,7 @@ def test_subscription_deleted_drops_to_free(
 ):
     user = _make_user(db_session, tier=UserTier.MAX.value)
     user.stripe_subscription_id = "sub_test_1"
+    user.cancel_at_period_end = True
     db_session.commit()
 
     event = _subscription_event(
@@ -302,6 +305,50 @@ def test_subscription_deleted_drops_to_free(
     assert refreshed.tier == UserTier.FREE.value
     assert refreshed.subscription_status == "canceled"
     assert refreshed.stripe_subscription_id is None
+    # Stale cancel flag from before deletion should be cleared so the
+    # user can re-subscribe cleanly.
+    assert refreshed.cancel_at_period_end is False
+
+
+def test_subscription_updated_persists_cancel_at_period_end(
+    client, db_session, webhook_secret, price_ids
+):
+    """Stripe's authoritative `cancel_at_period_end` is mirrored to the
+    user record so the UI can show 'cancels on <date>' without fetching
+    Stripe on every page load.
+    """
+    user = _make_user(db_session, tier=UserTier.PRO.value)
+
+    pending_cancel = _subscription_event(
+        event_id="evt_cancel_pending_1",
+        event_type="customer.subscription.updated",
+        customer_id=user.stripe_customer_id,
+        price_id=price_ids["pro"],
+        cancel_at_period_end=True,
+    )
+    res = _post_event(client, pending_cancel, secret=webhook_secret)
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    refreshed = db_session.query(User).filter_by(id=user.id).one()
+    assert refreshed.cancel_at_period_end is True
+    # Tier is preserved — they keep paid access until period end.
+    assert refreshed.tier == UserTier.PRO.value
+
+    # Reverse the cancellation via Stripe (resume).
+    resumed = _subscription_event(
+        event_id="evt_cancel_resumed_1",
+        event_type="customer.subscription.updated",
+        customer_id=user.stripe_customer_id,
+        price_id=price_ids["pro"],
+        cancel_at_period_end=False,
+    )
+    res = _post_event(client, resumed, secret=webhook_secret)
+    assert res.status_code == 200
+
+    db_session.expire_all()
+    refreshed = db_session.query(User).filter_by(id=user.id).one()
+    assert refreshed.cancel_at_period_end is False
 
 
 def test_invoice_payment_failed_marks_past_due(

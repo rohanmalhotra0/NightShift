@@ -32,6 +32,34 @@ class ApiError extends Error {
       'upgrade_url' in this.detail
     );
   }
+
+  /** Resolve `upgrade_url` from the detail object, falling back to /pricing. */
+  get upgradeUrl(): string {
+    if (
+      typeof this.detail === 'object' &&
+      this.detail !== null &&
+      typeof this.detail.upgrade_url === 'string' &&
+      this.detail.upgrade_url
+    ) {
+      return this.detail.upgrade_url;
+    }
+    return '/pricing';
+  }
+}
+
+/**
+ * Global handler invoked when any API call returns 402 with an
+ * `upgrade_url`. Set by `AuthProvider` on mount so paywall errors
+ * from anywhere in the app bounce the user to /pricing without each
+ * page needing its own try/catch. Returns true if it took the
+ * navigation, in which case the original request promise still
+ * rejects so consumers can short-circuit.
+ */
+type PaywallHandler = (error: ApiError) => boolean;
+let paywallHandler: PaywallHandler | null = null;
+
+export function setPaywallHandler(handler: PaywallHandler | null): void {
+  paywallHandler = handler;
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -63,7 +91,17 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     } else {
       message = 'Request failed';
     }
-    throw new ApiError(message, response.status, detail);
+    const apiError = new ApiError(message, response.status, detail);
+    if (apiError.isPaywall && paywallHandler) {
+      // Fire-and-forget: handler decides whether to navigate. The error
+      // is still thrown so awaiting code can stop.
+      try {
+        paywallHandler(apiError);
+      } catch {
+        /* never let a handler crash break the request flow */
+      }
+    }
+    throw apiError;
   }
 
   return response.json();
@@ -252,6 +290,25 @@ export const payments = {
       current_period_end: string | null;
       cancel_at_period_end: boolean;
     }>('/payments/subscription', { token }),
+
+  cancel: (token: string) =>
+    request<{ message: string; cancel_at_period_end: boolean }>(
+      '/payments/cancel',
+      { method: 'POST', token }
+    ),
+
+  resume: (token: string) =>
+    request<{ message: string; cancel_at_period_end: boolean }>(
+      '/payments/resume',
+      { method: 'POST', token }
+    ),
+
+  portal: (token: string, returnUrl: string) =>
+    request<{ url: string }>('/payments/portal', {
+      method: 'POST',
+      body: { return_url: returnUrl },
+      token,
+    }),
 };
 
 export { ApiError };
