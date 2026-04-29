@@ -10,13 +10,27 @@ type RequestOptions = {
   token?: string;
 };
 
+type ApiErrorDetail = { code?: string; message?: string; upgrade_url?: string } | string | null;
+
 class ApiError extends Error {
   status: number;
+  detail: ApiErrorDetail;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail: ApiErrorDetail = null) {
     super(message);
     this.status = status;
+    this.detail = detail;
     this.name = 'ApiError';
+  }
+
+  /** True for 402 Payment Required with an `upgrade_url` from the backend. */
+  get isPaywall(): boolean {
+    return (
+      this.status === 402 &&
+      typeof this.detail === 'object' &&
+      this.detail !== null &&
+      'upgrade_url' in this.detail
+    );
   }
 }
 
@@ -40,7 +54,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new ApiError(error.detail || 'Request failed', response.status);
+    const detail: ApiErrorDetail = error?.detail ?? null;
+    let message: string;
+    if (typeof detail === 'string') {
+      message = detail;
+    } else if (detail && typeof detail === 'object' && 'message' in detail && detail.message) {
+      message = detail.message as string;
+    } else {
+      message = 'Request failed';
+    }
+    throw new ApiError(message, response.status, detail);
   }
 
   return response.json();
@@ -61,7 +84,14 @@ export const auth = {
     }),
 
   getMe: (token: string) =>
-    request<{ id: string; email: string; tier: string; is_admin: boolean }>('/auth/me', { token }),
+    request<{
+      id: string;
+      email: string;
+      tier: string;
+      is_admin: boolean;
+      subscription_status: string | null;
+      current_period_end: string | null;
+    }>('/auth/me', { token }),
 };
 
 // Users
@@ -209,14 +239,19 @@ export const payments = {
     }>('/payments/pricing'),
 
   checkout: (token: string, tier: string, successUrl: string, cancelUrl: string) =>
-    request<{ checkout_url: string }>('/payments/checkout', {
+    request<{ checkout_url: string; session_id: string }>('/payments/checkout', {
       method: 'POST',
       body: { tier, success_url: successUrl, cancel_url: cancelUrl },
       token,
     }),
 
   subscription: (token: string) =>
-    request<{ tier: string; status: string }>('/payments/subscription', { token }),
+    request<{
+      tier: string;
+      status: string | null;
+      current_period_end: string | null;
+      cancel_at_period_end: boolean;
+    }>('/payments/subscription', { token }),
 };
 
 export { ApiError };

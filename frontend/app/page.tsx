@@ -291,7 +291,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <Link
-                href="/auth/signup"
+                href={`/pricing?tier=${tier.name.toLowerCase()}`}
                 className="btn-primary block text-center w-full"
               >
                 Get started

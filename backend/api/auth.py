@@ -40,6 +40,8 @@ class UserResponse(BaseModel):
     tier: str
     is_admin: bool
     is_active: bool
+    subscription_status: Optional[str] = None
+    current_period_end: Optional[datetime] = None
     created_at: datetime
 
     class Config:
@@ -129,6 +131,42 @@ async def require_admin(
             detail="Admin access required",
         )
     return user
+
+
+# Subscription statuses that grant access. Mirrors api.payments.ACTIVE_STATUSES;
+# duplicated here to avoid a circular import (payments imports from auth).
+_PAID_ACCESS_STATUSES = frozenset({"active", "trialing", "past_due"})
+
+
+async def require_paid_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require a user with an active paid subscription.
+
+    Admins always pass. Anyone else needs `tier != free` AND a
+    subscription_status in the access set. Returns 402 Payment Required
+    with `upgrade_url` so frontends can redirect to /pricing.
+    """
+    if current_user.is_admin:
+        return current_user
+
+    tier = current_user.tier
+    tier_value = tier if isinstance(tier, str) else getattr(tier, "value", str(tier))
+    sub_status = current_user.subscription_status
+
+    if tier_value != "free" and sub_status in _PAID_ACCESS_STATUSES:
+        return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+        detail={
+            "code": "subscription_required",
+            "message": "Active subscription required",
+            "upgrade_url": "/pricing",
+            "tier": tier_value,
+            "subscription_status": sub_status,
+        },
+    )
 
 
 # Routes
@@ -244,6 +282,8 @@ async def get_me(current_user: User = Depends(get_current_user)):
         tier=current_user.tier,
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
+        subscription_status=current_user.subscription_status,
+        current_period_end=current_user.current_period_end,
         created_at=current_user.created_at,
     )
 
