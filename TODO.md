@@ -28,10 +28,10 @@ The `nightshift-autopilot` scheduled task reads this file at the start of every 
 - [x] Empty/loading/error states (skeleton tiers, Suspense boundaries, 503/401 handling on checkout)
 
 ### 4. Tests + deploy
-- [ ] Set up CI (GitHub Actions): lint, typecheck, test, build on every PR
+- [x] Set up CI (GitHub Actions): lint, typecheck, test, build on every PR
 - [ ] Add deploy config (Vercel/Netlify) — preview deploys per PR
-- [ ] Add e2e or integration test covering: sign up → pay → access gated route
-- [ ] Production env vars documented in README
+- [x] Add e2e or integration test covering: sign up → pay → access gated route
+- [x] Production env vars documented in README
 
 ## Post-paywall (only after the above ships)
 - [ ] Annual plan + discount

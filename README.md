@@ -133,10 +133,17 @@ docker-compose up -d
 ### Payments
 - `GET /payments/pricing` - Get pricing tiers
 - `POST /payments/checkout` - Create checkout session
-- `GET /payments/subscription` - Get subscription status (reads persisted user record)
-- `POST /payments/cancel` - Cancel current subscription at period end
-- `POST /payments/portal` - Create Stripe Billing Portal session
+- `GET /payments/subscription` - Get subscription status (reads persisted user record, includes `cancel_at_period_end`)
+- `POST /payments/cancel` - Schedule cancellation at period end (sets `cancel_at_period_end=true`)
+- `POST /payments/resume` - Undo a pending cancellation (clears `cancel_at_period_end`)
+- `POST /payments/portal` - Create Stripe Billing Portal session (JSON body: `{"return_url": "..."}`)
 - `POST /payments/webhook` - Stripe webhook receiver (signature-verified, idempotent)
+
+The frontend exposes `/account/billing` for users to view current plan,
+schedule/undo cancellation, and open the Stripe portal. Any 402
+response with `upgrade_url` is auto-redirected to `/pricing?from=gate`
+by the global API client, so new gated endpoints get the same UX
+without per-page handling.
 
 #### Stripe webhook setup
 
@@ -145,7 +152,7 @@ The webhook endpoint at `/payments/webhook` handles:
 | Event | Effect |
 |-------|--------|
 | `checkout.session.completed` | Optimistically marks user active for the requested tier |
-| `customer.subscription.created` / `updated` | Syncs `tier`, `subscription_status`, `current_period_end`, `stripe_subscription_id` from the subscription object |
+| `customer.subscription.created` / `updated` | Syncs `tier`, `subscription_status`, `current_period_end`, `cancel_at_period_end`, `stripe_subscription_id` from the subscription object |
 | `customer.subscription.deleted` | Drops user back to `free`, clears subscription id |
 | `invoice.payment_failed` | Marks `subscription_status = past_due` |
 
@@ -192,6 +199,46 @@ Helper hooks for protected client routes:
 | `STRIPE_PRICE_ID_MAX` | Stripe price id for Max tier |
 | `JWT_SECRET` | Secret for JWT tokens |
 
+### Production Environment Variables
+
+When deploying (Railway for the backend, Vercel for the frontend), set
+**every variable below** before flipping traffic. Missing values fail
+quietly: the app boots, but checkout returns 503 and webhooks return
+503 with `Webhook secret not configured`.
+
+**Backend (Railway / Docker)**
+
+| Variable | Where it comes from | Notes |
+|----------|---------------------|-------|
+| `DATABASE_URL` | Postgres host | Use a connection pooler in prod (e.g. Supabase pgbouncer URL). |
+| `JWT_SECRET` | `openssl rand -hex 32` | **Rotate from the default before any real user signs up.** |
+| `JWT_ALGORITHM` | leave as `HS256` | |
+| `JWT_EXPIRATION_HOURS` | e.g. `24` | |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | choose | Login as this email gets `is_admin=true` and bypasses the paywall. |
+| `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys | Use a **live** `sk_live_…` key in prod, `sk_test_…` in staging. |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Dashboard → Developers → Webhooks → your endpoint | One per environment — **don't share between live and test**. Endpoint URL is `https://<your-domain>/payments/webhook`. |
+| `STRIPE_PRICE_ID_STARTER` | Stripe Dashboard → Products | Recurring monthly price; tier is unbookable if unset. |
+| `STRIPE_PRICE_ID_PRO` | same | |
+| `STRIPE_PRICE_ID_MAX` | same | |
+| `ANTHROPIC_API_KEY` | console.anthropic.com | Used by the auto-fill bot. |
+| `TWOCAPTCHA_API_KEY` | 2captcha.com | CAPTCHA solver. |
+| `GOOGLE_SHEETS_CREDENTIALS` | GCP service-account JSON, single line | For applications log. |
+| `GMAIL_CREDENTIALS` | GCP OAuth client JSON, single line | For email verification codes. |
+
+**Frontend (Vercel)**
+
+| Variable | Notes |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | Public URL of the deployed backend, e.g. `https://api.nightshift.app`. Baked in at build time. |
+
+**Stripe webhook endpoint setup (one-time per environment)**
+
+1. Stripe Dashboard → Developers → Webhooks → **Add endpoint**.
+2. URL: `https://<backend-domain>/payments/webhook`.
+3. Subscribe to: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`.
+4. Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+5. Hit "Send test webhook" → expect 200 OK.
+
 ### Subscription Tiers
 
 | Tier | Price | Apps/Night | Features |
@@ -231,12 +278,27 @@ Times are configurable per user.
 ```bash
 # Backend tests
 cd backend
+pip install -r requirements-dev.txt   # one-time: pytest + pytest-asyncio
 pytest
 
-# Frontend tests
+# Frontend
 cd frontend
-npm test
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
+
+### Continuous Integration
+
+GitHub Actions runs the same checks on every PR and push to `main` —
+see `.github/workflows/ci.yml`. Two parallel jobs:
+
+- **Backend** — installs `requirements.txt` + `requirements-dev.txt`, runs `pytest`.
+- **Frontend** — installs deps, runs `next lint`, `tsc --noEmit`, and `next build`.
+
+CI seeds dummy values for `JWT_SECRET`, `STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`, and the `STRIPE_PRICE_ID_*` vars so config
+loads cleanly. Tests inject their own values via `conftest.py`.
 
 ### Database Migrations
 
@@ -260,5 +322,3 @@ alembic upgrade head
 ## License
 
 MIT
-# NightShift
-# NightShift

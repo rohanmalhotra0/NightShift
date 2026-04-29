@@ -62,6 +62,7 @@ class User(Base):
     stripe_subscription_id = Column(String(255), nullable=True, index=True)
     subscription_status = Column(String(32), nullable=True)
     current_period_end = Column(DateTime, nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
     tier = Column(String(20), default="free")
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)

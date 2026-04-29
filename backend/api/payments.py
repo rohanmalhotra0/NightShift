@@ -86,6 +86,10 @@ class PricingResponse(BaseModel):
     tiers: list[dict]
 
 
+class PortalRequest(BaseModel):
+    return_url: str
+
+
 # Routes
 @router.get("/pricing", response_model=PricingResponse)
 async def get_pricing():
@@ -218,7 +222,7 @@ async def get_subscription(
             if current_user.current_period_end
             else None
         ),
-        cancel_at_period_end=False,
+        cancel_at_period_end=bool(current_user.cancel_at_period_end),
     )
 
 
@@ -227,7 +231,14 @@ async def cancel_subscription(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Cancel subscription at period end."""
+    """Cancel subscription at period end.
+
+    The user keeps access until `current_period_end`. The
+    `customer.subscription.updated` webhook will land shortly after
+    Stripe accepts the modify call and overwrite the flag with
+    Stripe's authoritative value, but we set it now so the UI
+    reflects the change immediately without waiting for the round trip.
+    """
     if not current_user.stripe_subscription_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -239,13 +250,60 @@ async def cancel_subscription(
             current_user.stripe_subscription_id,
             cancel_at_period_end=True,
         )
-        return {"message": "Subscription will be cancelled at period end"}
-
     except stripe.error.StripeError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Stripe error: {str(e)}",
         )
+
+    current_user.cancel_at_period_end = True
+    db.commit()
+    return {
+        "message": "Subscription will be cancelled at period end",
+        "cancel_at_period_end": True,
+    }
+
+
+@router.post("/resume")
+async def resume_subscription(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Undo a pending cancellation.
+
+    Only valid while the subscription is still active and scheduled
+    to cancel — once Stripe deletes the subscription at period end,
+    the user has to go through checkout again.
+    """
+    if not current_user.stripe_subscription_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active subscription",
+        )
+
+    if not current_user.cancel_at_period_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subscription is not scheduled for cancellation",
+        )
+
+    try:
+        stripe.Subscription.modify(
+            current_user.stripe_subscription_id,
+            cancel_at_period_end=False,
+        )
+    except stripe.error.StripeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stripe error: {str(e)}",
+        )
+
+    current_user.cancel_at_period_end = False
+    db.commit()
+    return {
+        "message": "Subscription resumed",
+        "cancel_at_period_end": False,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +363,7 @@ def _apply_subscription_state(
     sub_status = subscription.get("status")
     user.stripe_subscription_id = subscription.get("id")
     user.subscription_status = sub_status
+    user.cancel_at_period_end = bool(subscription.get("cancel_at_period_end"))
 
     period_end = subscription.get("current_period_end")
     user.current_period_end = (
@@ -326,6 +385,7 @@ def _mark_subscription_ended(db: Session, user: User, subscription: dict) -> Non
     user.tier = UserTier.FREE.value
     user.subscription_status = subscription.get("status") or "canceled"
     user.stripe_subscription_id = None
+    user.cancel_at_period_end = False
     period_end = subscription.get("current_period_end")
     user.current_period_end = (
         datetime.utcfromtimestamp(period_end) if period_end else None
@@ -513,10 +573,16 @@ async def stripe_webhook(
 
 @router.post("/portal")
 async def create_portal_session(
-    return_url: str,
+    request: PortalRequest,
     current_user: User = Depends(get_current_user),
 ):
-    """Create a Stripe customer portal session."""
+    """Create a Stripe customer portal session.
+
+    The portal lets the user manage their card, invoices, and (if
+    Stripe is configured for it) cancel/resume from Stripe's hosted UI.
+    Frontends pass `return_url` so Stripe knows where to send users
+    when they're done.
+    """
     if not current_user.stripe_customer_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -526,7 +592,7 @@ async def create_portal_session(
     try:
         session = stripe.billing_portal.Session.create(
             customer=current_user.stripe_customer_id,
-            return_url=return_url,
+            return_url=request.return_url,
         )
 
         return {"url": session.url}

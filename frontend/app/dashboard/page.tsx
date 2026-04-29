@@ -128,6 +128,7 @@ export default function DashboardPage() {
               {isAdmin ? 'Admin' : user.tier}
             </span>
             <Link href="/intake" className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Settings</Link>
+            <Link href="/account/billing" className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Billing</Link>
             <button onClick={handleLogout} className="text-xs text-[rgba(245,242,236,0.4)] hover:text-[rgba(245,242,236,0.9)] transition-colors">Logout</button>
           </div>
         </div>
