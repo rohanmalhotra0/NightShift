@@ -5,7 +5,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth as authApi } from './api';
+import { useRouter } from 'next/navigation';
+import { auth as authApi, setPaywallHandler, ApiError } from './api';
 
 type User = {
   id: string;
@@ -44,6 +45,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const TOKEN_KEY = 'nightshift_token';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +65,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Globally redirect to /pricing whenever any API call returns 402
+  // with `upgrade_url`. Each consumer would otherwise need its own
+  // try/catch — wiring it once here means new gated endpoints get
+  // the same UX for free.
+  useEffect(() => {
+    setPaywallHandler((error: ApiError) => {
+      if (typeof window === 'undefined') return false;
+      const target = error.upgradeUrl || '/pricing';
+      const path = window.location.pathname;
+      // Don't redirect away from /pricing itself or /auth/* — the user
+      // is already where they need to be (or about to authenticate).
+      if (path.startsWith(target) || path.startsWith('/auth/')) {
+        return false;
+      }
+      const sep = target.includes('?') ? '&' : '?';
+      router.push(`${target}${sep}from=gate`);
+      return true;
+    });
+    return () => setPaywallHandler(null);
+  }, [router]);
 
   const login = async (email: string, password: string) => {
     const { access_token } = await authApi.login(email, password);

@@ -246,7 +246,8 @@ def test_portal_requires_existing_customer(client, db_session):
     manage — return 400 instead of asking Stripe to invent one."""
     user = _make_user(db_session)
     res = client.post(
-        "/payments/portal?return_url=https://app.test/billing",
+        "/payments/portal",
+        json={"return_url": "https://app.test/billing"},
         headers={"Authorization": f"Bearer {_token_for(user)}"},
     )
     assert res.status_code == 400
@@ -264,7 +265,8 @@ def test_portal_returns_session_url(client, db_session, monkeypatch):
 
     user = _make_user(db_session, stripe_customer_id="cus_paying")
     res = client.post(
-        "/payments/portal?return_url=https%3A%2F%2Fapp.test%2Fbilling",
+        "/payments/portal",
+        json={"return_url": "https://app.test/billing"},
         headers={"Authorization": f"Bearer {_token_for(user)}"},
     )
     assert res.status_code == 200
@@ -274,7 +276,10 @@ def test_portal_returns_session_url(client, db_session, monkeypatch):
 
 
 def test_portal_unauthenticated_returns_401_or_403(client):
-    res = client.post("/payments/portal?return_url=https://app.test/billing")
+    res = client.post(
+        "/payments/portal",
+        json={"return_url": "https://app.test/billing"},
+    )
     assert res.status_code in (401, 403)
 
 

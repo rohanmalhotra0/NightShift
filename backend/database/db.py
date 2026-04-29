@@ -28,6 +28,10 @@ _INLINE_MIGRATIONS: dict[str, dict[str, str]] = {
         "stripe_subscription_id": "VARCHAR(255)",
         "subscription_status": "VARCHAR(32)",
         "current_period_end": "TIMESTAMP",
+        # Defaulting to 0 (false) so existing rows get a sane value without
+        # NOT NULL violations on Postgres. New rows go through the
+        # SQLAlchemy default at the model layer.
+        "cancel_at_period_end": "BOOLEAN NOT NULL DEFAULT FALSE",
     },
 }
 

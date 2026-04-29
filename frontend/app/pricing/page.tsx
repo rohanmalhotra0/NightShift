@@ -149,12 +149,20 @@ function PricingPageInner() {
                 {user?.subscription_status ? ` (${user.subscription_status})` : ''}.
               </p>
             </div>
-            <Link
-              href="/dashboard"
-              className="text-xs text-[var(--star)] hover:underline"
-            >
-              Back to dashboard
-            </Link>
+            <div className="flex gap-5 text-xs">
+              <Link
+                href="/account/billing"
+                className="text-[var(--star)] hover:underline"
+              >
+                Manage billing
+              </Link>
+              <Link
+                href="/dashboard"
+                className="text-[rgba(245,242,236,0.4)] hover:text-[#f5f2ec]"
+              >
+                Back to dashboard
+              </Link>
+            </div>
           </div>
         )}
 
